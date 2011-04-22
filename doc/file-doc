@@ -1,22 +1,60 @@
 ====================================================================
-== Data file page definitions
+== Terminology
 
-page types:
-	file_mapping
-	file_page
-		bitmap_index_page
-		bitmap_data_page
+# Column
+Indexing is done on the scope of columns, so everything discussed is within the scope of
+one column of data and all the values that column contains.
 
+# Bitmap
+A bitmap is a full index on one column. It covers all distinct values of that colum. The
+bitmap consist of a linked list of of index pages and a heap of data pages.
 
-file_mapping:
-	u4		number
-	u8		next
-	u8[]	file_page_addresses
+# Bitmap index page
+An index page of the bitmap is a lookup table from column values to index data pages for
+the corresponding value.
 
-	expl:
-		First page of a data file is always the 0th file_mapping.
-		File mapping pages contain mappings from filenames to page adresses of the first file page
+# Bitmap data page
+A data page contains pure WAH encoded bitmap data.
 
 
 ====================================================================
-== 
+== Data file page definitions
+
+# Size definitions
+ps = 16KiB (or boosts mapped_region.get_page_size)
+
+
+# Page types:
+file_mapping
+bitmap_index_page
+bitmap_data_page
+
+
+# Page type descriptors
+Field sizes are expressed in number of size units (u), which is one byte.
+u4 = 4 bytes = 32 bit int
+u8 = 8 bytes = 64 bit long
+u4[16] = array of sixteen 32 bit ints
+
+all fields are unsigned unless explicitly commented to be something else
+
+file_mapping:
+	u8[8]			reserved
+	u8[(ps-64)/3]	file_page_address			#TODO hash-map with chaining?
+
+	expl:
+		First page of a data file is always the 0th file_mapping page.
+		File mapping pages contain mappings from filenames to page adresses of the first file page.
+		The file_page_adress array is indexed using a parameterized hash function. Parameters
+		beeing the file name and this pages address.
+
+bitmap_index_page:
+	ux				x							#TODO hash-map with chaining?
+
+	expl:
+		An instance of Bitmap should always be pointed to the first index page of that bitmap.
+
+bitmap_data_page:
+	u8				next_page
+	u8[(ps-8)/8]	data
+
