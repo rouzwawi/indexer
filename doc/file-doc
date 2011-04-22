@@ -1,0 +1,22 @@
+====================================================================
+== Data file page definitions
+
+page types:
+	file_mapping
+	file_page
+		bitmap_index_page
+		bitmap_data_page
+
+
+file_mapping:
+	u4		number
+	u8		next
+	u8[]	file_page_addresses
+
+	expl:
+		First page of a data file is always the 0th file_mapping.
+		File mapping pages contain mappings from filenames to page adresses of the first file page
+
+
+====================================================================
+== 
