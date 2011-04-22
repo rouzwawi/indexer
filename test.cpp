@@ -1,8 +1,14 @@
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
+#include <boost/lexical_cast.hpp>
 
-#include "wah.hpp"
-#include "bitmap.hpp"
+#include "headers/typedefs.hpp"
+#include "headers/wah.hpp"
+#include "headers/bitmap.hpp"
+
+using namespace std;
+using namespace boost::interprocess;
+using boost::lexical_cast;
 
 void wah()
 {
@@ -24,38 +30,13 @@ void wah()
 	std::cout << WAH::fillvl(0xCFFFFFFFFFFFFFFF) << std::endl;
 }
 
-void mm(char* f)
-{
-	using namespace boost::interprocess;
-	try{
-		// Create a file mapping.
-		file_mapping m_file(f, read_write);
-
-		// Map the whole file in this process
-		mapped_region region
-			(m_file				//What to map
-			,read_write			//Map it as read-write
-			);
-
-		// Get the address of the mapped region
-		char* addr = (char*) region.get_address();
-
-		// little endian on OSX and Linux
-		int* i = (int*)addr;
-		long* l = (long*)addr;
-		std::cout << i[0] << std::endl; // will print 1024
-		std::cout << l[0] << std::endl; // will print 1024
-
-	}
-	catch(interprocess_exception &ex){
-		std::remove("file.bin");
-		std::cout << ex.what() << std::endl;
-	}
-}
-
 int main(int argc, const char* argv[])
 {
-	Bitmap bm(argv[1]);
+	cout << "page_size " << mapped_region::get_page_size() << endl;
+	
+	file_mapping data_file(argv[1], read_write);
+	u8 index_page_0 = lexical_cast<u8>(argv[2]);
+	Bitmap bitmap(data_file, index_page_0);
 	
 	return 0;
 }

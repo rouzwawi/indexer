@@ -1,11 +1,15 @@
-#include <boost/cstdint.hpp>
+#include "typedefs.hpp"
+
+#ifndef WAH_H
+#define WAH_H
+
 
 class WAH
 {
 private:
 
 public:
-	typedef uint_fast64_t word_t;
+	typedef u8 word_t;
 
 	static const int WORD_LENGTH = 64 - 1;
 
@@ -24,3 +28,6 @@ public:
 	static inline word_t increment(word_t w)        { return w + 1; }
 	static inline word_t increment(word_t w, int n) { return w + n; }
 };
+
+
+#endif

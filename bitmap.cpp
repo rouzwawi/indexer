@@ -1,11 +1,13 @@
-#include "bitmap.hpp"
+#include "headers/bitmap.hpp"
 
-Bitmap::Bitmap(const char* file):
-header_region(file_mapping(file, read_write), read_write, 0, HEADER_SIZE)
+
+Bitmap::Bitmap(const file_mapping& file_m, u8 page)
 {
-	header = (char*) header_region.get_address();
+	mmf::init_region(index_region, file_m, page);
+	index_page = (char*) index_region.get_address();
 	
-	int* h = (int*) header;
+	int* h = (int*) index_page;
+	std::cout << std::hex << h[0] << std::endl;
 }
 
 Bitmap::~Bitmap()
@@ -15,6 +17,5 @@ Bitmap::~Bitmap()
 
 void Bitmap::close()
 {
-	std::cout << "close" << std::endl;
-	header_region.flush(0, HEADER_SIZE);
+	index_region.flush(0, index_region.get_size());
 }
