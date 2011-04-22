@@ -27,6 +27,6 @@ ${DEPS}: %.dep: %.cpp Makefile
 	${COMPILER} ${CCFLAGS} ${LIBS} -MM $< > $@ 
 
 clean:: 
-	-rm -f *~ *.o ${TARGET} 
+	-rm -f *~ *.o *.dep ${TARGET} 
 
 distclean:: clean

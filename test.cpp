@@ -38,5 +38,11 @@ int main(int argc, const char* argv[])
 	u8 index_page_0 = lexical_cast<u8>(argv[2]);
 	Bitmap bitmap(data_file, index_page_0);
 	
+	string x;
+	do {
+		bitmap.foo();
+		cin >> x;
+	} while (x != "q");
+	
 	return 0;
 }
