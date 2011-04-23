@@ -21,7 +21,10 @@ A data page contains pure WAH encoded bitmap data.
 == Data file page definitions
 
 # Size definitions
-ps = 16KiB (or boosts mapped_region.get_page_size)
+
+ps = 16KiB # page size (or boosts mapped_region.get_page_size (4KiB))
+ds = 2GiB  # data file size
+pd = 500Ki # pages per datafile
 
 
 # Page types:

@@ -7,16 +7,16 @@
 
 using namespace boost::interprocess;
 
-class Bitmap
+class bitmap
 {
 	
-private:
-	mapped_region	index_region;
-	char*			index_page;
+private: // fields
+	mmf*  file;
+	char* index_page;
 
 public:
-	Bitmap(const file_mapping& file_m, u8 page);
-	~Bitmap();
+	bitmap(mmf* file, u8 page);
+	~bitmap();
 	
 	void close();
 	

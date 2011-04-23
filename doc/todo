@@ -1,5 +1,6 @@
 # create file manager to handle absolute file page addressing
-  . page addresses can be outside current file_mapping.
-  . means classes should not bother with mapped_region, just char*
-  . enable mapping larger areas of file to memory directly
-  . keep track of mapped regions to avoid mapping regions
+  d page addresses can be outside current file_mapping.
+  d means classes should not bother with mapped_region, just char*
+  d enable mapping larger areas of file to memory directly (regions)
+  d keep track of mapped regions to avoid re-mapping regions
+  . handle file allocation
