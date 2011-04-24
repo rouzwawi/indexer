@@ -35,7 +35,6 @@ private: // fields
 	const std::string            data_file;
 
 public:
-	// TODO: take filename and handle file allocation
 	mmf(const char* data_file);
 	~mmf();
 
