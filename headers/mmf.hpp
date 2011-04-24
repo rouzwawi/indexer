@@ -4,6 +4,7 @@
 #include <map>
 #include <algorithm>
 
+
 #include "typedefs.hpp"
 
 #ifndef MMF_H
@@ -29,12 +30,13 @@ using namespace std;
 class mmf {
 
 private: // fields
+	map<int, file_mapping*>      files;
 	map<u4, mapped_region*>      regions;	// region_address -> region
-	const file_mapping&          file_m;
+	const std::string            data_file;
 
 public:
 	// TODO: take filename and handle file allocation
-	mmf(const file_mapping& file_m);
+	mmf(const char* data_file);
 	~mmf();
 
 	char* get_page(u4 page);
@@ -43,7 +45,8 @@ public:
 	static size_t page_size()             { return PAGE_SIZE; }
 	static size_t region_size()           { return PAGES_PER_REGION * page_size(); }
 	static size_t file_size(int file)     { return file_regions(file) * region_size(); }
-	
+
+	static size_t region_offset(u4 page)  { return page % PAGES_PER_REGION * page_size(); }
 	static u4     file_regions(int file)  { return 1 << min(RAMP_FILES, file); }
 	static u4     regions_up_to(int file) { return file_regions(min(RAMP_FILES, file)) - 1 + max(0,file-RAMP_FILES) * file_regions(RAMP_FILES); }
 
@@ -52,8 +55,9 @@ public:
 	
 
 private:
-	bool is_region_mapped(u4 region_addr);
-	void map_region(u4 region_addr);
+	bool is_region_mapped(u4 region);
+	void map_region(u4 region);
+	void map_file(int file);
 
 };
 

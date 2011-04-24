@@ -93,25 +93,26 @@ int test_addr_calcs()
 int main(int argc, const char* argv[])
 {
 	test_addr_calcs();
-	
-	
-	file_mapping data_file(argv[1], read_write);
-	
-	mmf f(data_file);
-	
-	u4 index_page_0 = lexical_cast<u4>(argv[2]);
+
+	mmf f(argv[1]);
+
+	for (int p = 0; p < 522240; p+=PAGES_PER_REGION) {
+		int* c =  (int*) f.get_page(p);
+		c[0] = p;
+	}
+
+	//u4 index_page_0 = lexical_cast<u4>(argv[2]);
 	//bitmap bitmap(data_file, index_page_0);
-	
+
 	string x;
 	while (cin >> x) {
 		if (x == "q") exit(0);
+	
 		
 		//bitmap.foo();
 		u4 page = lexical_cast<u4>(x);
-		//int* p = (int*) f.get_page(page);
-		//cout << hex << p[0] << endl;
-		
-		cout << "page " << page << " region " << mmf::region_addr(page) << " file " << mmf::file_addr(mmf::region_addr(page)) << endl;
+		int* p = (int*) f.get_page(page);
+		cout << hex << p[0] << endl;
 	}
 	
 	return 0;
