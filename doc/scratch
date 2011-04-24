@@ -1,0 +1,17 @@
+file	size		regions		regions up tp		region addrs
+0		  8 MiB		  1			   0				0
+1		 16 MiB		  2			   1				1-2
+2		 32 MiB		  4			   3				3-6
+3		 64 MiB		  8			   7				7-14
+4		128 MiB		 16			  15				15-30
+5		256 MiB		 32			  31				31-62
+6		512 MiB		 64			  63
+7		  1 GiB		128			 127
+8...	  1 GiB		128			 255
+....	  1 GiB		128			 383
+....	  1 GiB		128			 511
+....	  1 GiB		128			 639
+....	  1 GiB		128			 767
+....	  1 GiB		128			 895
+
+
