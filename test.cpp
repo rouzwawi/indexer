@@ -104,7 +104,7 @@ int main(int argc, const char* argv[])
 	//u4 index_page_0 = lexical_cast<u4>(argv[2]);
 	//bitmap bitmap(data_file, index_page_0);
 
-	string x;
+	std::string x;
 	while (cin >> x) {
 		if (x == "q") exit(0);
 	

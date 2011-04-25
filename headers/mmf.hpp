@@ -30,8 +30,8 @@ using namespace std;
 class mmf {
 
 private: // fields
-	map<int, file_mapping*>      files;
-	map<u4, mapped_region*>      regions;	// region_address -> region
+	std::map<int, file_mapping*> files;
+	std::map<u4, mapped_region*> regions;	// region_address -> region
 	const std::string            data_file;
 
 public:

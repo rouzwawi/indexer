@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <iostream>
 #include <boost/cstdint.hpp>
 
 #ifndef TYPEDEFS_H
