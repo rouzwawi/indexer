@@ -22,9 +22,9 @@ A data page contains pure WAH encoded bitmap data.
 
 # Size definitions
 
-ps = 16KiB # page size (or boosts mapped_region.get_page_size (4KiB))
-ds = 2GiB  # data file size
-pd = 500Ki # pages per datafile
+ps = 4KiB # page size
+ds = 8MiB, 16MiB, 32MiB, 64MiB, 128MiB, 256MiB, 512MiB, 1024MiB... # data file size
+pd = mmf::file_size(file) / PAGE_SIZE # pages per datafile
 
 
 # Page types:

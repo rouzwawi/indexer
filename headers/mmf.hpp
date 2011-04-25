@@ -14,6 +14,8 @@
 #define PAGE_SIZE 4096
 #define PAGES_PER_REGION 2048
 
+// implies that first file has 1 region, thus 2048 pages, size 8MiB
+
 
 /**********************************************
  * sizes    as size_t

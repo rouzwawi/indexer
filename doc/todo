@@ -3,4 +3,4 @@
   d means classes should not bother with mapped_region, just char*
   d enable mapping larger areas of file to memory directly (regions)
   d keep track of mapped regions to avoid re-mapping regions
-  . handle file allocation
+  d handle file allocation
