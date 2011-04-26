@@ -8,8 +8,8 @@
 #define TYPEDEFS_H
 
 
-typedef uint_fast32_t u4;
-typedef uint_fast64_t u8;
+typedef uint32_t u4;
+typedef uint64_t u8;
 
 
 #endif
