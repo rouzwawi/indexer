@@ -1,8 +1,8 @@
 #include "typedefs.hpp"
 #include "mmf.hpp"
 
-#ifndef BITMAP_HPP
-#define BITMAP_HPP
+#ifndef BITMAP_H
+#define BITMAP_H
 
 
 using namespace boost::interprocess;

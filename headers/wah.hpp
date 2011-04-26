@@ -4,10 +4,8 @@
 #define WAH_H
 
 
-class WAH
+class wah
 {
-private:
-
 public:
 	typedef u8 word_t;
 

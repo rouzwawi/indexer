@@ -6,7 +6,7 @@ XDEPS   := $(wildcard ${DEPS})
 
 CCFLAGS = 
 LDFLAGS = 
-LIBS    = -I ${BOOST_HOME}
+LIBS    = 
 
 COMPILER = g++
 

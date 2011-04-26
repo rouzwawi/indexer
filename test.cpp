@@ -5,6 +5,8 @@
 #include <map>
 
 #include "headers/typedefs.hpp"
+
+#include "headers/sha1.hpp"
 #include "headers/wah.hpp"
 #include "headers/mmf.hpp"
 #include "headers/bitmap.hpp"
@@ -15,22 +17,22 @@ using boost::lexical_cast;
 
 void wah()
 {
-	std::cout << WAH::WORD_LENGTH << std::endl;
-	std::cout << std::hex << WAH::DATA_BITS << std::endl;
-	std::cout << std::hex << WAH::FILL_FLAG << std::endl;
-	std::cout << std::hex << WAH::FILL_VAL  << std::endl;
+	std::cout << wah::WORD_LENGTH << std::endl;
+	std::cout << std::hex << wah::DATA_BITS << std::endl;
+	std::cout << std::hex << wah::FILL_FLAG << std::endl;
+	std::cout << std::hex << wah::FILL_VAL  << std::endl;
 	std::cout << std::endl;
 
-	std::cout << WAH::increment(0x8000000000000001) << std::endl;
-	std::cout << WAH::increment(0xC000000000000001) << std::endl;
+	std::cout << wah::increment(0x8000000000000001) << std::endl;
+	std::cout << wah::increment(0xC000000000000001) << std::endl;
 
-	std::cout << WAH::increment(0x8000000000000001, 4) << std::endl;
-	std::cout << WAH::increment(0xC000000000000001, 4) << std::endl;
+	std::cout << wah::increment(0x8000000000000001, 4) << std::endl;
+	std::cout << wah::increment(0xC000000000000001, 4) << std::endl;
 
-	std::cout << WAH::isfill(0x7FFFFFFFFFFFFFFF) << std::endl;
-	std::cout << WAH::isfill(0x8FFFFFFFFFFFFFFF) << std::endl;
-	std::cout << WAH::fillvl(0x8FFFFFFFFFFFFFFF) << std::endl;
-	std::cout << WAH::fillvl(0xCFFFFFFFFFFFFFFF) << std::endl;
+	std::cout << wah::isfill(0x7FFFFFFFFFFFFFFF) << std::endl;
+	std::cout << wah::isfill(0x8FFFFFFFFFFFFFFF) << std::endl;
+	std::cout << wah::fillvl(0x8FFFFFFFFFFFFFFF) << std::endl;
+	std::cout << wah::fillvl(0xCFFFFFFFFFFFFFFF) << std::endl;
 }
 
 int test_addr_calcs()
@@ -93,6 +95,11 @@ int test_addr_calcs()
 int main(int argc, const char* argv[])
 {
 	test_addr_calcs();
+
+	unsigned int digest[5];
+	sha1::digest(argv[1], digest);
+	cout << hex << digest[0] << digest[1] << digest[2] << digest[3] << digest[4] << endl;
+	exit(0);
 
 	mmf f(argv[1]);
 
