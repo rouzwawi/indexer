@@ -8,8 +8,12 @@
 
 #include "headers/sha1.hpp"
 #include "headers/wah.hpp"
+
+#include "headers/fs.hpp"
 #include "headers/mmf.hpp"
 #include "headers/bitmap.hpp"
+
+#define LINES 64
 
 using namespace std;
 using namespace boost::interprocess;
@@ -96,17 +100,37 @@ int main(int argc, const char* argv[])
 {
 	test_addr_calcs();
 
-	unsigned int digest[5];
-	sha1::digest(argv[1], digest);
-	cout << hex << digest[0] << digest[1] << digest[2] << digest[3] << digest[4] << endl;
-	exit(0);
-
 	mmf f(argv[1]);
 
-	for (int p = 0; p < 522240; p+=PAGES_PER_REGION) {
-		int* c =  (int*) f.get_page(p);
-		c[0] = p;
-	}
+	if (f.allocated_pages() == 0)
+		fs::init(f);
+
+	fs fileSystem(f);
+	if (!fileSystem.has_file("data0"))
+		fileSystem.create_file("data0");
+	if (!fileSystem.has_file("data1"))
+		fileSystem.create_file("data1");
+	if (!fileSystem.has_file("data2"))
+		fileSystem.create_file("data2"); // collision
+	if (!fileSystem.has_file("data3"))
+		fileSystem.create_file("data3"); // collision
+	if (!fileSystem.has_file("grhth"))
+		fileSystem.create_file("grhth"); // collision
+
+	cout << "page for unknown file " << fileSystem.get_file_page("data_foo") << endl;
+
+	int* ptr;
+	ptr = (int*) f.get_page(fileSystem.get_file_page("data0"));
+	cout << ptr[0]++ << endl;
+	ptr = (int*) f.get_page(fileSystem.get_file_page("data1"));
+	cout << ptr[0]++ << endl;
+	ptr = (int*) f.get_page(fileSystem.get_file_page("data2"));
+	cout << ptr[0]++ << endl;
+	ptr = (int*) f.get_page(fileSystem.get_file_page("data3"));
+	cout << ptr[0]++ << endl;
+	ptr = (int*) f.get_page(fileSystem.get_file_page("grhth"));
+	cout << ptr[0]++ << endl;
+
 
 	//u4 index_page_0 = lexical_cast<u4>(argv[2]);
 	//bitmap bitmap(data_file, index_page_0);
@@ -115,11 +139,16 @@ int main(int argc, const char* argv[])
 	while (cin >> x) {
 		if (x == "q") exit(0);
 	
-		
-		//bitmap.foo();
 		u4 page = lexical_cast<u4>(x);
-		int* p = (int*) f.get_page(page);
-		cout << hex << p[0] << endl;
+		char* p = (char*) f.get_page(page);
+		for (int i=0; i<LINES; i++) {
+			for (int j=0; j<64; j++) {
+				int v = ((int)p[i*64 + j] & 0xFF);
+				if (j % 4 == 0) cout << " ";
+				cout << hex << (v<0x10?"0":"") << v;
+			}
+			cout << endl;
+		}
 	}
 	
 	return 0;

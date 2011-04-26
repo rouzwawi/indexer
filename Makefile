@@ -1,5 +1,5 @@
 TARGET  := indexer.out
-SRCS    := test.cpp mmf.cpp bitmap.cpp
+SRCS    := test.cpp mmf.cpp fs.cpp bitmap.cpp
 OBJS    := ${SRCS:.cpp=.o} 
 DEPS    := ${SRCS:.cpp=.dep} 
 XDEPS   := $(wildcard ${DEPS}) 

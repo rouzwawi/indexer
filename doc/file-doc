@@ -28,7 +28,7 @@ pd = mmf::file_size(file) / PAGE_SIZE # pages per datafile
 
 
 # Page types:
-file_mapping
+fs_hash_table
 bitmap_index_page
 bitmap_data_page
 
@@ -41,15 +41,20 @@ u4[16] = array of sixteen 32 bit ints
 
 all fields are unsigned unless explicitly commented to be something else
 
-file_mapping:
-	u8[8]			reserved
-	u8[(ps-64)/3]	file_page_address			#TODO hash-map with chaining?
+fs_hash_table:
+	u4				0x72786469			# magic word "idxr"
+	u4[15]			reserved			# empty for future header use
+	u4[8][113]		hash_table			# hash_table entries
+	u4[104]			reserved			# waste
+
+	4*(1 + 15 + 8*113 + 104) == 4KiB
 
 	expl:
-		First page of a data file is always the 0th file_mapping page.
-		File mapping pages contain mappings from filenames to page adresses of the first file page.
-		The file_page_adress array is indexed using a parameterized hash function. Parameters
-		beeing the file name and this pages address.
+		First page of a data file with file system is always the 0th hash_table page.
+		Hash table pages contain mappings from filenames to page adresses of the first file page.
+		Each table entry contains a sha1 hash, some flags, a page address and a 'next' pointer.
+		The 'next' pointers point to another fs_hash_table page, used for collisions.
+		See 'struct hash_entry' in fs.hpp
 
 bitmap_index_page:
 	ux				x							#TODO hash-map with chaining?
@@ -58,6 +63,6 @@ bitmap_index_page:
 		An instance of Bitmap should always be pointed to the first index page of that bitmap.
 
 bitmap_data_page:
-	u8				next_page
-	u8[(ps-8)/8]	data
+	u4				next_page
+	u8[(ps-4)/8]	data
 

@@ -1,11 +1,11 @@
-#include <boost/interprocess/file_mapping.hpp>
-#include <boost/interprocess/mapped_region.hpp>
-
 #include <map>
 #include <algorithm>
 
+#include <boost/interprocess/file_mapping.hpp>
+#include <boost/interprocess/mapped_region.hpp>
 
 #include "typedefs.hpp"
+
 
 #ifndef MMF_H
 #define MMF_H
@@ -35,13 +35,19 @@ private: // fields
 	std::map<int, file_mapping*> files;
 	std::map<u4, mapped_region*> regions;	// region_address -> region
 	const std::string            data_file;
+	const std::string            data_index;
+
+	mapped_region index_region;
+	u4* next_empty_page;
 
 public:
 	mmf(const char* data_file);
 	~mmf();
 
-	char* get_page(u4 page);
-	void flush(char* page);
+	u4 allocated_pages();
+	u4 allocate_page();
+	void* get_page(u4 page);
+	void flush(u4 page);
 
 	static size_t page_size()             { return PAGE_SIZE; }
 	static size_t region_size()           { return PAGES_PER_REGION * page_size(); }
@@ -59,6 +65,9 @@ private:
 	bool is_region_mapped(u4 region);
 	void map_region(u4 region);
 	void map_file(int file);
+
+	void read_index();
+	void write_index();
 
 };
 
