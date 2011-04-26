@@ -136,10 +136,25 @@ int main(int argc, const char* argv[])
 	//bitmap bitmap(data_file, index_page_0);
 
 	std::string x;
+	std::string y;
 	while (cin >> x) {
 		if (x == "q") exit(0);
 	
-		u4 page = lexical_cast<u4>(x);
+		if (x == "a") {
+			cin >> y;
+			if(fileSystem.has_file(y.c_str())) {
+				cout << "file '" << y << "' exists @ page " << hex << fileSystem.get_file_page(y.c_str()) << endl;
+			} else {
+				cout << "allocated '" << y << "' @ page " << hex << fileSystem.create_file(y.c_str()) << endl;
+			}
+			continue;
+		}
+	
+		u4 page;
+		stringstream ss;
+		ss << hex << x;
+		ss >> page;
+		cout << "page " << dec << page << endl;
 		char* p = (char*) f.get_page(page);
 		for (int i=0; i<LINES; i++) {
 			for (int j=0; j<64; j++) {

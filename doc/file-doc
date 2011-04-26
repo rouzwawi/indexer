@@ -43,11 +43,12 @@ all fields are unsigned unless explicitly commented to be something else
 
 fs_hash_table:
 	u4				0x72786469			# magic word "idxr"
-	u4[15]			reserved			# empty for future header use
+	u4				parent_table		# page address of parent table
+	u4[14]			reserved			# empty for future header use
 	u4[8][113]		hash_table			# hash_table entries
 	u4[104]			reserved			# waste
 
-	4*(1 + 15 + 8*113 + 104) == 4KiB
+	4*(1 + 1 + 14 + 8*113 + 104) == 4KiB
 
 	expl:
 		First page of a data file with file system is always the 0th hash_table page.

@@ -28,8 +28,9 @@ class fs
 {
 
 private:
-	mmf& file;
+	mmf&        file;
 	hash_entry* hash_table;
+	u4          loaded_table;
 
 public:
 	fs(mmf& file);
@@ -46,7 +47,7 @@ private:
 	int find_table(u4(&sha1)[5], bool allocate);
 
 	static int table_index(const u4(&sha1)[5], int jumps) { return sha1[jumps % 5] % TABLE_ENTRIES; }
-	static void magic_word(void* page_ptr);
+	static void init_table(void* page_ptr, u4 parent);
 };
 
 

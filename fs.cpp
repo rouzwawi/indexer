@@ -53,6 +53,7 @@ void fs::load_table(u4 page)
 {
 	char* page_ptr = (char*) file.get_page(page);
 	hash_table = (hash_entry*) (page_ptr + TABLE_OFFSET);
+	loaded_table = page;
 }
 
 int fs::find_table(u4(&sha1)[5], bool allocate)
@@ -69,7 +70,7 @@ int fs::find_table(u4(&sha1)[5], bool allocate)
 			if (!allocate) return -1; // do not allocate new tables, just return -1 (not found)
 			u4 next_table_page = file.allocate_page();
 			hash_entry->next_table = next_table_page;
-			magic_word(file.get_page(next_table_page));
+			init_table(file.get_page(next_table_page), loaded_table);
 			file.flush(next_table_page);
 		}
 		load_table(hash_entry->next_table);
@@ -82,11 +83,12 @@ int fs::find_table(u4(&sha1)[5], bool allocate)
 	return index;
 }
 
-void fs::magic_word(void* page_ptr)
+void fs::init_table(void* page_ptr, u4 parent)
 {
 	// write magic word
 	int* ptr = (int*) page_ptr;
 	ptr[0] = MAGIC_WORD;
+	ptr[1] = parent;
 }
 
 void fs::init(mmf& file)
@@ -99,7 +101,7 @@ void fs::init(mmf& file)
 	assert(page_0 == 0);
 
 	void* page_ptr = file.get_page(page_0);
-	magic_word(page_ptr);
+	init_table(page_ptr, -1);
 	file.flush(page_0);
 
 	std::cerr << "initialized filesystem" << std::endl;
