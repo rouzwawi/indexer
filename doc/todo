@@ -6,4 +6,13 @@
   d handle file allocation
 
 # do hash table lookups in fs a bit cleaner
-  . return value refactor of fs::find_table
+  . refactor of fs::find_table
+
+# query evaluation
+  . query parsing
+  . evaluation mechanism, streams?
+
+# data transformation in scala?
+  . might be easier to implement transform layer in scala
+  . transform DSL -> functional programming
+  . not where performance is critical

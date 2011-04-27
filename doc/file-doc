@@ -1,5 +1,5 @@
 ====================================================================
-== Terminology
+== Terminology ==
 
 # Column
 Indexing is done on the scope of columns, so everything discussed is within the scope of
@@ -18,30 +18,26 @@ A data page contains pure WAH encoded bitmap data.
 
 
 ====================================================================
-== Data file page definitions
-
-# Size definitions
-
+== Data file page definitions ==
+=== Size definitions ===
 ps = 4KiB # page size
 ds = 8MiB, 16MiB, 32MiB, 64MiB, 128MiB, 256MiB, 512MiB, 1024MiB... # data file size
 pd = mmf::file_size(file) / PAGE_SIZE # pages per datafile
+mx = sizeof(u8) # actual platform size of u8, read below on types
 
-
-# Page types:
-fs_hash_table
-bitmap_index_page
-bitmap_data_page
-
-
-# Page type descriptors
 Field sizes are expressed in number of size units (u), which is one byte.
-u4 = 4 bytes = 32 bit int
-u8 = 8 bytes = 64 bit long
-u4[16] = array of sixteen 32 bit ints
+u4 = 4 bytes = 32 bit unsigned integer type
+u8 = 8 bytes = 64 bit unsigned integer type
+u4[16] = array of sixteen u4's
 
-all fields are unsigned unless explicitly commented to be something else
+Note that we might not have native u8's so some definitions are dynamic
+with respect to the actual size of u8 (might be same as u4).
 
-fs_hash_table:
+u4 will always be u4
+
+
+=== Page type descriptors ===
+==== fs_hash_table ====
 	u4				0x72786469			# magic word "idxr"
 	u4				parent_table		# page address of parent table
 	u4[14]			reserved			# empty for future header use
@@ -57,13 +53,87 @@ fs_hash_table:
 		The 'next' pointers point to another fs_hash_table page, used for collisions.
 		See 'struct hash_entry' in fs.hpp
 
-bitmap_index_page:
-	ux				x							#TODO hash-map with chaining?
+==== bm_data_page ====
+	u4				next_page
+	u8[]		data
+
+	size calc size calc size calc
 
 	expl:
-		An instance of Bitmap should always be pointed to the first index page of that bitmap.
+		blaoblao
 
-bitmap_data_page:
-	u4				next_page
-	u8[(ps-4)/8]	data
+
+====================================================================
+== Indexing meta-language ==
+This is a specification of a DSL for defining a structure in which the indexing is done.
+
+
+idea:
+	Raw data comes in the familiar 'request-parameter' form (HTTP query strings)
+	data_type:
+		map[string => array[string]]
+
+	Scope????
+
+	A language to define transformations. The transformation can be seen as an 
+	expansion/emission function on instances of the data type.
+	Defined as a tuple of a 'scope' and an array of expansions/emissions.
+	transform:
+		data_type -> (string, array[string])
+
+	Language requirements:
+		simple to express yet powerful
+		validation / tolerant to corrupt data
+		useful helper functions
+
+example:
+	data = sid=>[site1], ts=>[1303933032], tags=>[tag1,tag2,tag3], a=>[ad1], e=>[0], t=>[3]
+
+	scope:
+		scope $sid/v$$week($ts)
+			site1/v17
+	
+	expansion:
+		# expands all values
+		expand tags[$tags[*]]
+			tags[tag1]
+			tags[tag2]
+			tags[tag3]
+		# expand first element
+		expand tags[$tags]
+			tags[tag1]
+		expand event[$e]
+			event[0]
+		expand ad[$a]
+			ad[ad1]
+		expand foo[$missing]
+			<nothing>
+
+	validation:
+		validate has $sid $ts			# data has fields $sid and $ts
+		validate if  $e[0] $t			# if e == 0, t must exist
+		validate if  $e[21] !$t			# if e == 21, t must not exist
+		validate min $tags[#1]			# tags has at least 1 value, implies 'has $tags'
+		validate max $tags[#4]			# tags has at most 4 values, implies 'has $tags'
+		validate equ $tags[#3]			# tags has exactly 3 values, implies 'has $tags'
+
+	post-transform:
+		(
+			size/v17,
+			set(
+				tags[tag1],
+				tags[tag2],
+				tags[tag3],
+				event[0],
+				ad[ad1]
+			)
+		)
+
+
+
+
+
+
+
+
 
