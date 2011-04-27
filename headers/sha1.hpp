@@ -1,4 +1,4 @@
-#include <boost/uuid/sha1.hpp>
+#include "boost_sha1.hpp"
 
 
 #ifndef SHA1_H
