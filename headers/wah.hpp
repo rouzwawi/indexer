@@ -12,10 +12,10 @@ public:
 
 	static const int WORD_LENGTH = 64 - 1;
 
-	static const word_t FILL_FLAG = 0x8000000000000000;
-	static const word_t FILL_VAL  = 0x4000000000000000;
-	static const word_t FILL_BITS = 0x3FFFFFFFFFFFFFFF;
-	static const word_t DATA_BITS = 0x7FFFFFFFFFFFFFFF;
+	static const word_t FILL_FLAG = 0x8000000000000000LLU;
+	static const word_t FILL_VAL  = 0x4000000000000000LLU;
+	static const word_t FILL_BITS = 0x3FFFFFFFFFFFFFFFLLU;
+	static const word_t DATA_BITS = 0x7FFFFFFFFFFFFFFFLLU;
 
 	static inline bool isfill(word_t w) { return w & FILL_FLAG; }
 	static inline bool fillvl(word_t w) { return w & FILL_VAL; }

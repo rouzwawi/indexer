@@ -55,6 +55,7 @@ u4 will always be u4
 
 ==== bm_data_page ====
 	u4				next_page
+	u4[3]			reserved
 	u8[]		data
 
 	size calc size calc size calc
@@ -79,7 +80,7 @@ idea:
 	expansion/emission function on instances of the data type.
 	Defined as a tuple of a 'scope' and an array of expansions/emissions.
 	transform:
-		data_type -> (string, array[string])
+		data_type -> (string, set[string])
 
 	Language requirements:
 		simple to express yet powerful
@@ -112,7 +113,7 @@ example:
 	validation:
 		validate has $sid $ts			# data has fields $sid and $ts
 		validate if  $e[0] $t			# if e == 0, t must exist
-		validate if  $e[21] !$t			# if e == 21, t must not exist
+		validate if  $e[13] !$t			# if e == 13, t must not exist
 		validate min $tags[#1]			# tags has at least 1 value, implies 'has $tags'
 		validate max $tags[#4]			# tags has at most 4 values, implies 'has $tags'
 		validate equ $tags[#3]			# tags has exactly 3 values, implies 'has $tags'

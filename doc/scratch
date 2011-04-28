@@ -28,7 +28,7 @@ sid=>[site1], ts=>[1303933034], tags=>[tag2],                     e=>[13]				# c
 scope $sid/v$$week($ts)
 expand tags[$tags[*]]
 expand ad[$a]
-expand event[$e]
+expand event$e
 expand format[$t]
 
 # bitmaps (all in scope 'site1/v17')

@@ -27,16 +27,16 @@ void wah()
 	std::cout << std::hex << wah::FILL_VAL  << std::endl;
 	std::cout << std::endl;
 
-	std::cout << wah::increment(0x8000000000000001) << std::endl;
-	std::cout << wah::increment(0xC000000000000001) << std::endl;
+	std::cout << wah::increment(0x8000000000000001LLU) << std::endl;
+	std::cout << wah::increment(0xC000000000000001LLU) << std::endl;
 
-	std::cout << wah::increment(0x8000000000000001, 4) << std::endl;
-	std::cout << wah::increment(0xC000000000000001, 4) << std::endl;
+	std::cout << wah::increment(0x8000000000000001LLU, 4) << std::endl;
+	std::cout << wah::increment(0xC000000000000001LLU, 4) << std::endl;
 
-	std::cout << wah::isfill(0x7FFFFFFFFFFFFFFF) << std::endl;
-	std::cout << wah::isfill(0x8FFFFFFFFFFFFFFF) << std::endl;
-	std::cout << wah::fillvl(0x8FFFFFFFFFFFFFFF) << std::endl;
-	std::cout << wah::fillvl(0xCFFFFFFFFFFFFFFF) << std::endl;
+	std::cout << wah::isfill(0x7FFFFFFFFFFFFFFFLLU) << std::endl;
+	std::cout << wah::isfill(0x8FFFFFFFFFFFFFFFLLU) << std::endl;
+	std::cout << wah::fillvl(0x8FFFFFFFFFFFFFFFLLU) << std::endl;
+	std::cout << wah::fillvl(0xCFFFFFFFFFFFFFFFLLU) << std::endl;
 }
 
 int test_addr_calcs()
