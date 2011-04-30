@@ -4,7 +4,7 @@ OBJS    := ${SRCS:.cpp=.o}
 DEPS    := ${SRCS:.cpp=.dep} 
 XDEPS   := $(wildcard ${DEPS}) 
 
-CCFLAGS = 
+CCFLAGS = -O2
 LDFLAGS = 
 LIBS    = 
 

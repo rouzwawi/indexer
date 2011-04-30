@@ -5,12 +5,14 @@
 #ifndef FS_H
 #define FS_H
 
-#define MAGIC_WORD 0x72786469
+#define FS_MAGIC_WORD 0x72786469
 
-#define TABLE_OFFSET 64
-#define TABLE_ENTRIES 113
+#define FS_TABLE_OFFSET 64
+#define FS_TABLE_ENTRIES 113
 
-#define HE_FILLED 0x00000001
+#define FS_HEAD_PARENT 1
+
+#define FS_HE_FILLED 0x00000001
 
 
 typedef struct hash_entry
@@ -46,7 +48,7 @@ private:
 	void load_table(u4 page);
 	int find_table(u4(&sha1)[5], bool allocate);
 
-	static int table_index(const u4(&sha1)[5], int jumps) { return sha1[jumps % 5] % TABLE_ENTRIES; }
+	static int table_index(const u4(&sha1)[5], int jumps) { return sha1[jumps % 5] % FS_TABLE_ENTRIES; }
 	static void init_table(void* page_ptr, u4 parent);
 };
 

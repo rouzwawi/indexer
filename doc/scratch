@@ -1,4 +1,68 @@
 ###############################################################################################
+# bitmap writing
+
+assume 7 bit word length
+
+cw = _....DDD
+cw offset = 3
+
+slice1 = _0001111  # 4bits
+slice2 = _1110000  # 3bits << 4
+
+input
+	_XXXXXXX _YYYYYYY _..ZZZZZ  # 19 bits
+	_6543210 _6543210 _..43210
+
+file
+	_DDDDDDD _....DDD
+	^ filled ^current
+
+steps for 2 words (19 / 7)
+		_0001111
+	&	_XXXXXXX
+		_000XXXX << 3
+						_XXXX000
+					|	_....DDD
+						_XXXXDDD
+file
+	_DDDDDDD _XXXXDDD _.......
+	         _3210...
+	^ filled ^ filled ^current
+
+		_1110000
+	&	_XXXXXXX
+		_XXX0000 >> 4
+						_0000XXX
+					|	_.......
+						_....XXX
+file
+	_DDDDDDD _XXXXDDD _....XXX
+	         _3210... _....654
+	^ filled ^ filled ^current
+
+		_0001111
+	&	_YYYYYYY
+		_000YYYY << 3
+						_YYYY000
+					|	_....XXX
+						_YYYYXXX
+file
+	_DDDDDDD _XXXXDDD _YYYYXXX _.......
+	         _3210... _3210654
+	^ filled ^ filled ^ filled ^current
+
+		_1110000
+	&	_YYYYYYY
+		_YYY0000 >> 4
+						_0000YYY
+					|	_.......
+						_0000YYY
+file
+	_DDDDDDD _XXXXDDD _YYYYXXX _....YYY
+	         _3210... _3210654 _....654
+	^ filled ^ filled ^ filled ^current
+
+###############################################################################################
 file	size		regions		regions up tp		region addrs
 0		  8 MiB		  1			   0				0
 1		 16 MiB		  2			   1				1-2

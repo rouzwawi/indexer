@@ -27,16 +27,10 @@ void wah()
 	std::cout << std::hex << wah::FILL_VAL  << std::endl;
 	std::cout << std::endl;
 
-	std::cout << wah::increment(0x8000000000000001LLU) << std::endl;
-	std::cout << wah::increment(0xC000000000000001LLU) << std::endl;
-
-	std::cout << wah::increment(0x8000000000000001LLU, 4) << std::endl;
-	std::cout << wah::increment(0xC000000000000001LLU, 4) << std::endl;
-
 	std::cout << wah::isfill(0x7FFFFFFFFFFFFFFFLLU) << std::endl;
 	std::cout << wah::isfill(0x8FFFFFFFFFFFFFFFLLU) << std::endl;
-	std::cout << wah::fillvl(0x8FFFFFFFFFFFFFFFLLU) << std::endl;
-	std::cout << wah::fillvl(0xCFFFFFFFFFFFFFFFLLU) << std::endl;
+	std::cout << wah::fillval(0x8FFFFFFFFFFFFFFFLLU) << std::endl;
+	std::cout << wah::fillval(0xCFFFFFFFFFFFFFFFLLU) << std::endl;
 }
 
 int test_addr_calcs()
@@ -99,38 +93,13 @@ int test_addr_calcs()
 int main(int argc, const char* argv[])
 {
 	test_addr_calcs();
-
+	
 	mmf f(argv[1]);
 
 	if (f.allocated_pages() == 0)
 		fs::init(f);
 
 	fs fileSystem(f);
-	if (!fileSystem.has_file("data0"))
-		fileSystem.create_file("data0");
-	if (!fileSystem.has_file("data1"))
-		fileSystem.create_file("data1");
-	if (!fileSystem.has_file("data2"))
-		fileSystem.create_file("data2"); // collision
-	if (!fileSystem.has_file("data3"))
-		fileSystem.create_file("data3"); // collision
-	if (!fileSystem.has_file("grhth"))
-		fileSystem.create_file("grhth"); // collision
-
-	cout << "page for unknown file " << fileSystem.get_file_page("data_foo") << endl;
-
-	int* ptr;
-	ptr = (int*) f.get_page(fileSystem.get_file_page("data0"));
-	cout << ptr[0]++ << endl;
-	ptr = (int*) f.get_page(fileSystem.get_file_page("data1"));
-	cout << ptr[0]++ << endl;
-	ptr = (int*) f.get_page(fileSystem.get_file_page("data2"));
-	cout << ptr[0]++ << endl;
-	ptr = (int*) f.get_page(fileSystem.get_file_page("data3"));
-	cout << ptr[0]++ << endl;
-	ptr = (int*) f.get_page(fileSystem.get_file_page("grhth"));
-	cout << ptr[0]++ << endl;
-
 
 	//u4 index_page_0 = lexical_cast<u4>(argv[2]);
 	//bitmap bitmap(data_file, index_page_0);
@@ -139,17 +108,43 @@ int main(int argc, const char* argv[])
 	std::string y;
 	while (cin >> x) {
 		if (x == "q") exit(0);
-	
+
 		if (x == "a") {
 			cin >> y;
+			u4 page;
 			if(fileSystem.has_file(y.c_str())) {
-				cout << "file '" << y << "' exists @ page " << hex << fileSystem.get_file_page(y.c_str()) << endl;
+				cout << "file '" << y << "' exists @ page " << hex << (page = fileSystem.get_file_page(y.c_str())) << endl;
 			} else {
-				cout << "allocated '" << y << "' @ page " << hex << fileSystem.create_file(y.c_str()) << endl;
+				page = fileSystem.create_file(y.c_str());
+				bitmap::init(f, page);
+				cout << "allocated '" << y << "' @ page " << hex << page << endl;
+			}
+			bitmap bm(f, page);
+			u8 bits[] = {0x7FFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL, 0xAAAULL};
+			bm.append(bits, 201);
+			continue;
+		}
+
+		if (x == "w") {
+			cin >> y;
+			
+			if(fileSystem.has_file(y.c_str())) {
+				u4 file_page = fileSystem.get_file_page(y.c_str());
+				int* ptr = (int*) f.get_page(file_page);
+				int* p;
+				for (int x=0;x<PAGE_SIZE/sizeof(int);x++) {
+					p = ptr + x;
+					for (int y=0;y<(1<<20)-1;y++) {
+						(*p)++;
+					}
+				}
+				cout << "wrote to file '" << y << "' @ page " << hex << file_page << endl;
+			} else {
+				cout << "file '" << y << "' does not exists" << endl;
 			}
 			continue;
 		}
-	
+
 		u4 page;
 		stringstream ss;
 		ss << hex << x;

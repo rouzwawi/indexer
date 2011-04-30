@@ -23,22 +23,16 @@ A data page contains pure WAH encoded bitmap data.
 ps = 4KiB # page size
 ds = 8MiB, 16MiB, 32MiB, 64MiB, 128MiB, 256MiB, 512MiB, 1024MiB... # data file size
 pd = mmf::file_size(file) / PAGE_SIZE # pages per datafile
-mx = sizeof(u8) # actual platform size of u8, read below on types
 
 Field sizes are expressed in number of size units (u), which is one byte.
 u4 = 4 bytes = 32 bit unsigned integer type
 u8 = 8 bytes = 64 bit unsigned integer type
 u4[16] = array of sixteen u4's
 
-Note that we might not have native u8's so some definitions are dynamic
-with respect to the actual size of u8 (might be same as u4).
-
-u4 will always be u4
-
 
 === Page type descriptors ===
 ==== fs_hash_table ====
-	u4				0x72786469			# magic word "idxr"
+	u4				0x72786469			# magic word 'idxr'
 	u4				parent_table		# page address of parent table
 	u4[14]			reserved			# empty for future header use
 	u4[8][113]		hash_table			# hash_table entries
@@ -53,12 +47,20 @@ u4 will always be u4
 		The 'next' pointers point to another fs_hash_table page, used for collisions.
 		See 'struct hash_entry' in fs.hpp
 
-==== bm_data_page ====
-	u4				next_page
-	u4[3]			reserved
-	u8[]		data
+==== scope_page ====
+	u4				0x706f6373			# magic word 'scop'
+	u8				counter
 
-	size calc size calc size calc
+==== bitmap_data_page ====
+	u4				0x706d7462			# magic word 'btmp'
+	u4				last_page			# last page of bitmap (only on first page of bitmap)
+	u4				next_page			# 
+	u4				written_words		# words written in this page
+	u4				cw_offset			# written bits in current word
+	u4[--]			reserved			# empty for future header use
+	u8[504]			data				# bitmap data in WAH code
+
+	4*(1 + 1 + 1 + 13) + 8*504 == 4KiB
 
 	expl:
 		blaoblao
