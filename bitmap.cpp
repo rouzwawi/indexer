@@ -25,8 +25,6 @@ void bitmap::append(u8* buffer, int bits)
 {
 	u4 lo_len = (BM_DATA_BITS - cw_offset);
 	u4 hi_len = cw_offset;
-	wah::word_t lo_mask = ((1ULL << lo_len) - 1);
-	wah::word_t hi_mask = ((1ULL << hi_len) - 1) << lo_len;
 
 	u4 words = bits / BM_DATA_BITS;
 	u4 remain = bits % BM_DATA_BITS;
@@ -34,63 +32,61 @@ void bitmap::append(u8* buffer, int bits)
 	// do we have a word split?
 	if (hi_len) {
 		std::cerr << "two phase" << std::endl;
+		// two-phase transfer of low and high parts of data
+
 		register wah::word_t cw = *current_word;
-		// two-phase move of low and high parts of data
-		for (int i=0; i<words; i++) {
-			u8 data = buffer[i];
-		
-			// phase 1 move low data to high word pos
-			cw |= (data & lo_mask) << hi_len;
+		for (int i=0; i<words;) {
+			u4 bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
+			for (int j=0; j<bulk_words; j++) {
+				u8 data = buffer[i + j];
 
-			// current word is now full
-			full_word(cw);
-			cw = 0;
+				// phase 1 move low data to high word pos
+				cw |= data << hi_len;
 
-			if (written_words == BM_DATA_WORDS) { // page is full
-				full_page();
+				// current word is now full
+				full_word(cw);
+				cw = 0;
+
+				// phase 2 move high data to low word pos
+				cw |= data >> lo_len;
 			}
-
-			// phase 2 move high data to low word pos
-			cw |= (data & hi_mask) >> lo_len;
+			i += bulk_words;
+			full_page();
 		}
 		*current_word = cw;
 	} else {
 		std::cerr << "single phase" << std::endl;
-		// single-phase move of full words
-		for (int i=0; i<words; i++) {
-			full_word(buffer[i]);
-
-			if (written_words == BM_DATA_WORDS) { // page is full
-				full_page();
+		// single-phase transfer of full words
+		for (int i=0; i<words;) {
+			u4 bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
+			for (int j=0; j<bulk_words; j++) {
+				full_word(buffer[i + j]);
 			}
+			i += bulk_words;
+			full_page();
 		}
 	}
-	
+
 	// cw_ffset is not changed
-	
+
 	// handle remain bits
 	if (remain) {
 		u8 data = buffer[words];
-		
+
 		lo_len = std::min(remain, (BM_DATA_BITS - cw_offset));
 		hi_len = remain - lo_len;
-		lo_mask = ((1ULL << lo_len) - 1);
-		hi_mask = ((1ULL << hi_len) - 1) << lo_len;
-		
-		*current_word |= (data & lo_mask) << cw_offset;
+
+		*current_word |= data << cw_offset;
 		cw_offset += lo_len;
 		cw_offset %= BM_DATA_BITS;
-		
+
 		if (!cw_offset) { // word is full
 			full_word(*current_word);
-			
-			if (written_words == BM_DATA_WORDS) { // page is full
-				full_page();
-			}
+			full_page();
 		}
-		
+
 		if (hi_len) { // bits for next word
-			*current_word |= (data & hi_mask) >> lo_len;
+			*current_word |= data >> lo_len;
 			cw_offset += hi_len;
 		}
 	}
@@ -111,6 +107,7 @@ void bitmap::close()
 
 inline void bitmap::full_word(wah::word_t& w)
 {
+	w &= wah::DATA_BITS;
 	if (wah::allones(w) || wah::allzero(w)) { // compress
 		if (written_words && wah::samefill(*(current_word - 1), w)) {
 			(*(current_word - 1))++;
@@ -128,6 +125,9 @@ inline void bitmap::full_word(wah::word_t& w)
 
 inline void bitmap::full_page()
 {
+	// do we actually have a full page?
+	if (written_words != BM_DATA_WORDS) return;
+
 	// save actual offset value since a full page can occur during 2-phase transfers
 	u4 cwo = cw_offset;
 	cw_offset = 0;
@@ -141,11 +141,11 @@ inline void bitmap::full_page()
 	file.flush(first_page);
 	file.flush(current_page);
 
+	std::cerr << "new page " << std::hex << current_page << " -> " << next_page << std::endl;
+
 	// initialize the new page and load it
 	init(file, next_page, 0);
 	load_page(next_page);
-
-	std::cerr << "new page " << std::hex << current_page << " -> " << next_page << std::endl;
 }
 
 void bitmap::init_page(u4 page) 
