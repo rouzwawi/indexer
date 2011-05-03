@@ -31,7 +31,6 @@ void bitmap::append(u8* buffer, int bits)
 
 	// do we have a word split?
 	if (hi_len) {
-		std::cerr << "two phase" << std::endl;
 		// two-phase transfer of low and high parts of data
 
 		register wah::word_t cw = *current_word;
@@ -55,7 +54,6 @@ void bitmap::append(u8* buffer, int bits)
 		}
 		*current_word = cw;
 	} else {
-		std::cerr << "single phase" << std::endl;
 		// single-phase transfer of full words
 		for (int i=0; i<words;) {
 			u4 bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
@@ -140,8 +138,6 @@ inline void bitmap::full_page()
 	current_page_header[BM_HEAD_NEXT_PAGE] = next_page;
 	file.flush(first_page);
 	file.flush(current_page);
-
-	std::cerr << "new page " << std::hex << current_page << " -> " << next_page << std::endl;
 
 	// initialize the new page and load it
 	init(file, next_page, 0);
