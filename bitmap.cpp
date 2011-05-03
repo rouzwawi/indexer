@@ -33,7 +33,7 @@ void bitmap::append(u8* buffer, int bits)
 
 	// do we have a word split?
 	if (hi_len) {
-		std::cout << "two phase" << std::endl;
+		std::cerr << "two phase" << std::endl;
 		register wah::word_t cw = *current_word;
 		// two-phase move of low and high parts of data
 		for (int i=0; i<words; i++) {
@@ -55,7 +55,7 @@ void bitmap::append(u8* buffer, int bits)
 		}
 		*current_word = cw;
 	} else {
-		std::cout << "single phase" << std::endl;
+		std::cerr << "single phase" << std::endl;
 		// single-phase move of full words
 		for (int i=0; i<words; i++) {
 			full_word(buffer[i]);
@@ -96,6 +96,7 @@ void bitmap::append(u8* buffer, int bits)
 	}
 	
 	update_headers();
+	file.flush(current_page);
 }
 
 void bitmap::fill(bool value, int bits)
@@ -111,18 +112,14 @@ void bitmap::close()
 inline void bitmap::full_word(wah::word_t& w)
 {
 	if (wah::allones(w) || wah::allzero(w)) { // compress
-		std::cout << "compress" << std::endl;
 		if (written_words && wah::samefill(*(current_word - 1), w)) {
-			std::cout << "-inc" << std::endl;
 			(*(current_word - 1))++;
 		} else {
-			std::cout << "-new" << std::endl;
 			*current_word = (wah::allones(w) ? wah::FILL_1 : wah::FILL_0) + 1;
 			current_word++;
 			written_words++;
 		}
 	} else { // literal
-		std::cout << "literal" << std::endl;
 		*current_word = w;
 		current_word++;
 		written_words++;
@@ -131,7 +128,29 @@ inline void bitmap::full_word(wah::word_t& w)
 
 inline void bitmap::full_page()
 {
-	
+	// save actual offset value since a full page can occur during 2-phase transfers
+	u4 cwo = cw_offset;
+	cw_offset = 0;
+	update_headers();
+	cw_offset = cwo;
+
+	// allocate a new page and, use as next from current and last from first
+	u4 next_page = file.allocate_page();
+	first_page_header[BM_HEAD_LAST_PAGE] = next_page;
+	current_page_header[BM_HEAD_NEXT_PAGE] = next_page;
+	file.flush(first_page);
+	file.flush(current_page);
+
+	// initialize the new page and load it
+	init(file, next_page, 0);
+	load_page(next_page);
+
+	std::cerr << "new page " << std::hex << current_page << " -> " << next_page << std::endl;
+}
+
+void bitmap::init_page(u4 page) 
+{
+	init(file, page);
 }
 
 void bitmap::load_page(u4 page) 
@@ -156,7 +175,9 @@ void bitmap::update_headers()
 	current_page_header[BM_HEAD_CW_OFFSET] = cw_offset;
 }
 
-void bitmap::init(mmf& file, u4 page)
+void bitmap::init(mmf& file, u4 page) { init(file, page, page); }
+
+void bitmap::init(mmf& file, u4 page, u4 last_page)
 {
 	u4* ptr = (u4*) file.get_page(page);
 
@@ -165,6 +186,6 @@ void bitmap::init(mmf& file, u4 page)
 
 	// write header
 	ptr[0] = BM_MAGIC_WORD;
-	ptr[BM_HEAD_LAST_PAGE] = page;
-	ptr[BM_HEAD_CW_OFFSET] = 0;
+	ptr[BM_HEAD_LAST_PAGE] = last_page;
+	//ptr[BM_HEAD_CW_OFFSET] = 0;
 }

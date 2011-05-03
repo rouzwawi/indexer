@@ -51,10 +51,14 @@ public:
 	static void init(mmf& file, u4 page);
 
 private:
-	inline void full_word(wah::word_t& w);
-	inline void full_page();
+	void full_word(wah::word_t& w);
+	void full_page();
+
+	void init_page(u4 page);
 	void load_page(u4 page);
 	void update_headers();
+
+	static void init(mmf& file, u4 page, u4 last_page);
 };
 
 

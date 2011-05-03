@@ -121,7 +121,8 @@ int main(int argc, const char* argv[])
 			}
 			bitmap bm(f, page);
 			u8 bits[] = {0x7FFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL, 0xAAAULL};
-			bm.append(bits, 201);
+			for (int v=0;v<16;v++)
+				bm.append(bits, 201);
 			continue;
 		}
 
