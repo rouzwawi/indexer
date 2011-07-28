@@ -11,6 +11,7 @@
 # query evaluation
   . query parsing
   . evaluation mechanism, streams?
+  . evaluation optimizations, fill-sequence syncronization
 
 # data transformation in scala?
   . might be easier to implement transform layer in scala
