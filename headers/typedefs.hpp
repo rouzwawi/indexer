@@ -11,5 +11,7 @@
 typedef uint32_t u4;
 typedef uint64_t u8;
 
+#define U8(x) ( x##LLU )
+
 
 #endif

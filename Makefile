@@ -1,12 +1,12 @@
 TARGET  := indexer.out
-SRCS    := test.cpp mmf.cpp fs.cpp bitmap.cpp
+SRCS    := test.cpp mmf.cpp fs.cpp bitmap.cpp biterator.cpp
 OBJS    := ${SRCS:.cpp=.o} 
 DEPS    := ${SRCS:.cpp=.dep} 
 XDEPS   := $(wildcard ${DEPS}) 
 
 CCFLAGS = -O2
-LDFLAGS = 
-LIBS    = 
+LDFLAGS = -O2
+LIBS    =
 
 COMPILER = g++
 

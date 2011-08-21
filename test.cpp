@@ -12,6 +12,7 @@
 #include "headers/fs.hpp"
 #include "headers/mmf.hpp"
 #include "headers/bitmap.hpp"
+#include "headers/biterator.hpp"
 
 #define LINES 64
 
@@ -94,7 +95,7 @@ int test_addr_calcs()
 int main(int argc, const char* argv[])
 {
 	test_addr_calcs();
-	
+
 	mmf f(argv[1]);
 
 	if (f.allocated_pages() == 0)
@@ -121,9 +122,28 @@ int main(int argc, const char* argv[])
 				cout << "allocated '" << y << "' @ page " << hex << page << endl;
 			}
 			bitmap bm(f, page);
-			u8 bits[] = {0x7FFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL, 0xAAAULL};
+			u8 bits[] = {U8(0x7FFFFFFFFFFFFFFF), U8(0x7FFFFFFFFFFFFFFF), U8(0x7FFFFFFFFFFFFFFF), U8(0xAAA)};
 			for (int v=0;v<16;v++)
 				bm.append(bits, 201);
+			continue;
+		}
+
+		if (x == "i") {
+			cin >> y;
+			u4 page;
+			if(fileSystem.has_file(y.c_str())) {
+				cout << "file '" << y << "' exists @ page " << hex << (page = fileSystem.get_file_page(y.c_str())) << endl;
+			} else {
+				cout << "file '" << y << "' not found...abort iteration" << endl;
+				continue;
+			}
+			biterator it(f, page);
+			while (it.has_next()) {
+				cout << hex << it.next() << endl;
+			}
+			cout << it.last_word_mask() << endl;
+			cout << "EOF" << endl;
+			
 			continue;
 		}
 
