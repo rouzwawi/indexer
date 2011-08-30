@@ -1,3 +1,4 @@
+
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/lexical_cast.hpp>
@@ -33,6 +34,12 @@ void wah()
 	std::cout << wah::isfill(0x8FFFFFFFFFFFFFFFLLU) << std::endl;
 	std::cout << wah::fillval(0x8FFFFFFFFFFFFFFFLLU) << std::endl;
 	std::cout << wah::fillval(0xCFFFFFFFFFFFFFFFLLU) << std::endl;
+}
+
+void test_callback(u8 word, u8 mask) { cout << word << endl; }
+
+int test_itop()
+{
 }
 
 int test_addr_calcs()
@@ -95,6 +102,7 @@ int test_addr_calcs()
 int main(int argc, const char* argv[])
 {
 	test_addr_calcs();
+	test_itop();
 
 	mmf f(argv[1]);
 
@@ -122,9 +130,9 @@ int main(int argc, const char* argv[])
 				cout << "allocated '" << y << "' @ page " << hex << page << endl;
 			}
 			bitmap bm(f, page);
-			u8 bits[] = {U8(0x7FFFFFFFFFFFFFFF), U8(0x7FFFFFFFFFFFFFFF), U8(0x7FFFFFFFFFFFFFFF), U8(0xAAA)};
+			u8 bits[] = {U8(0x7FFFFFFFFFFFFFFF), U8(0x7FFFFFFFFFFFFFFF), U8(0xAAA), U8(0xCCC), U8(0xFFF)};
 			for (int v=0;v<16;v++)
-				bm.append(bits, 201);
+				bm.append(bits, 327);
 			continue;
 		}
 
@@ -139,11 +147,30 @@ int main(int argc, const char* argv[])
 			}
 			biterator it(f, page);
 			while (it.has_next()) {
-				cout << hex << it.next() << endl;
+				cout << hex << it.next();
 			}
 			cout << it.last_word_mask() << endl;
 			cout << "EOF" << endl;
 			
+			op op0 = AND;
+			boperator bop(op0, it, it);
+			bop.operate(&test_callback);
+			
+			continue;
+		}
+
+		if (x == "s") {
+			cin >> y;
+			u4 page;
+			if(fileSystem.has_file(y.c_str())) {
+				cout << "file '" << y << "' exists @ page " << hex << (page = fileSystem.get_file_page(y.c_str())) << endl;
+			} else {
+				cout << "file '" << y << "' not found...abort iteration" << endl;
+				continue;
+			}
+			biterator it(f, page);
+			it.skip_words(600);
+			cout << "Done skipping" << endl;
 			continue;
 		}
 

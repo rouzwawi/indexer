@@ -99,8 +99,6 @@ public:
 
 	static void init(mmf& file, u4 page);
 
-	friend class biterator;
-
 private:
 	void full_word(wah::word_t& w);
 	void full_page();
@@ -110,6 +108,8 @@ private:
 	void init_page(u4 page);
 	void load_page(u4 page);
 	void update_headers();
+
+	friend class biterator;
 
 	static void init(mmf& file, u4 page, u4 last_fill_page, u4 last_page);
 };

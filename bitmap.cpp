@@ -42,7 +42,7 @@ void bitmap::append(u8* buffer, int bits)
 
 		register wah::word_t cw = *current_word;
 		for (int i=0; i<words;) {
-			u4 bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
+			int bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
 			std::cout << "two phase bulk " << std::dec << bulk_words << std::endl << std::endl;
 			for (int j=0; j<bulk_words; j++) {
 				u8 data = buffer[i + j];
@@ -64,7 +64,7 @@ void bitmap::append(u8* buffer, int bits)
 	} else {
 		// single-phase transfer of full words
 		for (int i=0; i<words;) {
-			u4 bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
+			int bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
 			std::cout << "single phase bulk " << std::dec << bulk_words << std::endl << std::endl;
 			for (int j=0; j<bulk_words; j++) {
 				full_word(buffer[i + j]);
@@ -122,7 +122,7 @@ inline void bitmap::full_word(wah::word_t& w)
 {
 	w &= wah::DATA_BITS;
 	if (wah::allones(w) || wah::allzero(w)) { // compress
-		if (wah::samefill(*last_fill_word, w)) {
+		if ((w & wah::LTRL_BITS) == 0 && wah::samefill(*last_fill_word, w)) {
 			(*last_fill_word)++;
 			std::cout << "samefill " << std::hex << *last_fill_word << " " << w << std::endl;
 			std::cout << "cw " << std::hex << current_word << " lf " << last_fill_word << std::endl << std::endl;

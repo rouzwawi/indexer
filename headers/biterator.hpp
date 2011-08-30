@@ -1,3 +1,7 @@
+#include <iterator>
+
+#include "FastDelegate.h"
+
 #include "typedefs.hpp"
 #include "bitmap.hpp"
 #include "op.hpp"
@@ -9,6 +13,7 @@
 
 using namespace boost::interprocess;
 
+// does not conform to starands c++ iterators
 class biterator
 {
 	
@@ -24,13 +29,11 @@ private: // fields
 	u4    fills;
 	u4    ltrls;
 
-	void* current_page_ptr;
-	u4*   current_page_header;
+	bitmap_page current_page;
 
-	wah::word_t* current_page;
+	wah::word_t* current_page_data;
 
 public:
-	biterator(bitmap& bitmap);
 	biterator(mmf& file, u4 page);
 	~biterator();
 
@@ -38,13 +41,14 @@ public:
 	u8   last_word_mask() { return (U8(1) << (length % wah::WORD_LENGTH)) - 1; }
 
 	u8   next();
-
-	void close();
+	void skip_words(u4 words);
 
 private:
-	void init(bitmap& bitmap);
+	void init(u4 page);
 	void load_page(u4 page);
 	void read_fill();
+
+	friend class boperator;
 };
 
 
@@ -52,15 +56,23 @@ private:
 // biterator o biterator
 // ~ biterator
 
-template <op OP> class boperator {
-};
+enum skip_fill_value { SKIPNONE, SKIP0, SKIP1 };
 
-template <> class boperator <AND> {
-};
-template <> class boperator <OR> {
-};
-template <> class boperator <XOR> {
-};
+using namespace fastdelegate;
+class boperator {
+	
+private:
+	op ope;
+	biterator it0, it1;
+public:
+	//typedef void (*callback) (u8, u8);
+	typedef FastDelegate2<u8, u8> callback;
 
+	boperator(op ope, biterator it0, biterator it1) : ope(ope), it0(it0), it1(it1) {}
+	boperator(op ope, const boperator& bop) : ope(ope), it0(bop.it0), it1(bop.it1) {}
+	boperator(const boperator& bop) : ope(bop.ope), it0(bop.it0), it1(bop.it1) {}
+
+	u8 operate(callback cb, skip_fill_value skip_val=SKIPNONE);
+};
 
 #endif

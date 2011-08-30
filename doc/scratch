@@ -24,12 +24,23 @@ b0 ^ ( b1 & b2 )
    `--b1 biterator
    `--b2 biterator
 
+// ? can we skip_
 u8 buffer[buffer_len]
 
-template <operator OP> class boperator {
+// fill buffer with 'bits' bits of calculated data.
+u4 operate(u8* buffer, u4 bits) {
+	
 }
 
-.. and specializations
+// alternative way
+typedef void (*callback) (u8, u8);
+void fun(u8 word, u8 mask) { ... }
+u4 operate(callback cb, ) {
+	// iterate iterators and call callback
+}
+
+
+internal and specializations for operators
 
 
 ###############################################################################################
