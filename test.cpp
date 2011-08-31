@@ -1,9 +1,10 @@
-
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/lexical_cast.hpp>
 
 #include <map>
+#include <list>
+#include <iterator>
 
 #include "headers/typedefs.hpp"
 
@@ -154,6 +155,9 @@ int main(int argc, const char* argv[])
 			
 			op op0 = AND;
 			boperator bop(op0, it, it);
+			const list<noderator*>& c = bop.c();
+			for(list<noderator*>::const_iterator ct = c.begin(); ct != c.end(); ++ct)
+				cout << *ct << endl;
 			bop.operate(&test_callback);
 			
 			continue;
@@ -169,6 +173,7 @@ int main(int argc, const char* argv[])
 				continue;
 			}
 			biterator it(f, page);
+			
 			it.skip_words(600);
 			cout << "Done skipping" << endl;
 			continue;

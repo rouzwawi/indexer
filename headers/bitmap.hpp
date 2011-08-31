@@ -70,7 +70,6 @@ private:
 
 class bitmap
 {
-	
 private: // fields
 	mmf&  file;
 	u4    first_page_num;

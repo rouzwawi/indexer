@@ -3,13 +3,10 @@
 #include <algorithm>
 
 
-biterator::biterator(mmf& file, u4 page) : file(file) { init(page); }
-biterator::~biterator() {}
 void biterator::init(u4 page)
 {
 	load_page(page);
 	length = current_page.length();
-	iterated = 0;
 
 	// first word is always a fill word, read it
 	read_fill();

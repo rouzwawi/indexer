@@ -27,6 +27,36 @@ b0 ^ ( b1 & b2 )
 // ? can we skip_
 u8 buffer[buffer_len]
 
+== idea
+two opeands with fill (0/1) and ltrl counts, expressed
+[01],\d+,\d+
+_ = dont care
+
+examples
+0,i,x		i fills of 0 then x literals
+1,i,x		i fills of 1 then x literals
+0,i,_		i fills of 0 then any number of literals
+_,i,x		i fills of any value then x literals
+_,0,x		no fills then x literals
+_,_,_		dont care at all
+
+operands are commutative, so cases with op0 and op1 reversed are same
+
+ope		op0			op1			res
+&		0,i,_		_,_,_		0,i,0 |              | op0.skip(i) | op1.skip(i) | type:fill_seq
+&		1,i,_		1,j,_		1,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+&		1,i,_		_,0,x		_,0,u | u = min(i,x) | op1 direct for u words    | type:1op_direct
+
+|		1,i,_		_,_,_		1,i,0 |              | op0.skip(i) | op1.skip(i) | type:fill_seq
+|		0,i,_		0,j,_		0,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+|		0,i,_		_,0,x		_,0,u | u = min(i,x) | op1 direct for u words    | type:1op_direct
+
+^		0,i,_		1,j,_		1,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+^		X,i,_		X,j,_		0,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+^		0,i,_		_,0,x		_,0,u | u = min(i,x) | op1 direct for u words    | type:1op_direct
+^		1,i,_		_,0,x		_,0,u | u = min(i,x) | op1 invert for u words    | type:1op_invert
+
+
 // fill buffer with 'bits' bits of calculated data.
 u4 operate(u8* buffer, u4 bits) {
 	
@@ -38,9 +68,6 @@ void fun(u8 word, u8 mask) { ... }
 u4 operate(callback cb, ) {
 	// iterate iterators and call callback
 }
-
-
-internal and specializations for operators
 
 
 ###############################################################################################
