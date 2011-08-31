@@ -14,6 +14,26 @@
 using namespace boost::interprocess;
 using namespace std;
 
+struct fill_state {
+	fill_state() : fillv(0), fills(0), ltrls(0) {}
+
+	bool fillv;
+	u4   fills;
+	u4   ltrls;
+
+	inline bool empty() { return !fills && !ltrls; }
+	inline void read(const wah::word_t& fw)  {
+		fillv = wah::fillval(fw);
+		fills = wah::fillcnt(fw);
+		ltrls = wah::ltrlcnt(fw);
+	}
+	inline void set(bool v, u4 f, u4 l)  {
+		fillv = v;
+		fills = f;
+		ltrls = l;
+	}
+};
+
 class noderator
 {
 private:
@@ -23,30 +43,29 @@ protected:
 	noderator() : length(0), iterated(0) {}
 	virtual ~noderator() {};
 
-	// fill status
-	bool  fillv;
-	u4    fills;
-	u4    ltrls;
-
 	// iteration status
-	u8    length;
-	u8    iterated;
+	u8 length;
+	u8 iterated;
+
+	fill_state fls;
 
 	// tree structure
 	list<noderator*> children;
 
 public:
-	virtual bool has_next() { return iterated < length; }
-
+	bool has_next() { return iterated < length; }
+	u8 last_word_mask() { return (U8(1) << (length % wah::WORD_LENGTH)) - 1; }
+	const list<noderator*>& c() { return children; }
+	
 	virtual u8 next() = 0;
 	virtual void skip_words(u4 words) = 0;
+	virtual void prep_fill() = 0;
 
-	u8 last_word_mask() { return (U8(1) << (length % wah::WORD_LENGTH)) - 1; }
-
-	virtual const list<noderator*>& c() { return children; }
+	friend class biterator;
+	friend class boperator;
 };
 
-// does not conform to starands c++ iterators
+
 class biterator : public noderator
 {
 private:
@@ -62,11 +81,11 @@ public:
 
 	virtual u8 next();
 	virtual void skip_words(u4 words);
+	virtual void prep_fill();
 
 private:
 	void init(u4 page);
 	void load_page(u4 page);
-	void read_fill();
 };
 
 
@@ -95,11 +114,12 @@ public:
 
 	virtual u8 next() {};
 	virtual void skip_words(u4 words) {};
+	virtual void prep_fill();
 
 	u8 operate(callback cb, skip_fill_value skip_val=SKIPNONE);
 
 private:
-	void init() { children.push_back(&op0); children.push_back(&op1); }
+	void init();
 };
 
 #endif

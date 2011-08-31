@@ -153,8 +153,22 @@ int main(int argc, const char* argv[])
 			cout << it.last_word_mask() << endl;
 			cout << "EOF" << endl;
 			
-			op op0 = AND;
-			boperator bop(op0, it, it);
+			continue;
+		}
+
+		if (x == "o") {
+			cin >> y;
+			u4 page;
+			if(fileSystem.has_file(y.c_str())) {
+				cout << "file '" << y << "' exists @ page " << hex << (page = fileSystem.get_file_page(y.c_str())) << endl;
+			} else {
+				cout << "file '" << y << "' not found...abort iteration" << endl;
+				continue;
+			}
+			biterator it0(f, page);
+			biterator it1(f, page);
+			
+			boperator bop(OR, it0, it1);
 			const list<noderator*>& c = bop.c();
 			for(list<noderator*>::const_iterator ct = c.begin(); ct != c.end(); ++ct)
 				cout << *ct << endl;
@@ -175,7 +189,6 @@ int main(int argc, const char* argv[])
 			biterator it(f, page);
 			
 			it.skip_words(600);
-			cout << "Done skipping" << endl;
 			continue;
 		}
 

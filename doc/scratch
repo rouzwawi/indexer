@@ -13,9 +13,7 @@ current_word_offset	number of written bits in current_word
 
 
 ###############################################################################################
-# biterator data flow data types
-
-wort_t = u8
+# biterator flow data manipulation
 
 b0 ^ ( b1 & b2 )
 ^ boperator
@@ -24,13 +22,12 @@ b0 ^ ( b1 & b2 )
    `--b1 biterator
    `--b2 biterator
 
-// ? can we skip_
+// ? can we skip buffering intermediate
 u8 buffer[buffer_len]
 
 == idea
 two opeands with fill (0/1) and ltrl counts, expressed
-[01],\d+,\d+
-_ = dont care
+<[01]>,<[ijn_]>,<[xyu_]>
 
 examples
 0,i,x		i fills of 0 then x literals
@@ -42,32 +39,23 @@ _,_,_		dont care at all
 
 operands are commutative, so cases with op0 and op1 reversed are same
 
-ope		op0			op1			res
-&		0,i,_		_,_,_		0,i,0 |              | op0.skip(i) | op1.skip(i) | type:fill_seq
-&		1,i,_		1,j,_		1,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-&		1,i,_		_,0,x		_,0,u | u = min(i,x) | op1 direct for u words    | type:1op_direct
+case	ope		op0			op1			res
+A0		&		0,i,_		_,_,_		0,i,0	|              | op0.skip(i) | op1.skip(i) | type:fill_seq
+A1		&		1,i,_		1,j,_		1,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+A2		&		1,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 direct for u words    | type:1op_direct
+A3		&		_,0,x		_,0,y		_,0,u	| u = min(x,y) | literal op0 AND op1       | type:2op_operate
 
-|		1,i,_		_,_,_		1,i,0 |              | op0.skip(i) | op1.skip(i) | type:fill_seq
-|		0,i,_		0,j,_		0,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-|		0,i,_		_,0,x		_,0,u | u = min(i,x) | op1 direct for u words    | type:1op_direct
+O0		|		1,i,_		_,_,_		1,i,0	|              | op0.skip(i) | op1.skip(i) | type:fill_seq
+O1		|		0,i,_		0,j,_		0,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+O2		|		0,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 direct for u words    | type:1op_direct
+O3		|		_,0,x		_,0,y		_,0,u	| u = min(x,y) | literal op0 OR op1        | type:2op_operate
 
-^		0,i,_		1,j,_		1,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-^		X,i,_		X,j,_		0,n,0 | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-^		0,i,_		_,0,x		_,0,u | u = min(i,x) | op1 direct for u words    | type:1op_direct
-^		1,i,_		_,0,x		_,0,u | u = min(i,x) | op1 invert for u words    | type:1op_invert
+X0		^		0,i,_		1,j,_		1,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+X1		^		X,i,_		X,j,_		0,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+X2		^		0,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 direct for u words    | type:1op_direct
+X3		^		1,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 invert for u words    | type:1op_invert
+X4		^		_,0,x		_,0,y		_,0,u	| u = min(x,y) | literal op0 XOR op1       | type:2op_operate
 
-
-// fill buffer with 'bits' bits of calculated data.
-u4 operate(u8* buffer, u4 bits) {
-	
-}
-
-// alternative way
-typedef void (*callback) (u8, u8);
-void fun(u8 word, u8 mask) { ... }
-u4 operate(callback cb, ) {
-	// iterate iterators and call callback
-}
 
 
 ###############################################################################################

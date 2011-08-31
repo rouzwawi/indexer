@@ -9,19 +9,19 @@ void biterator::init(u4 page)
 	length = current_page.length();
 
 	// first word is always a fill word, read it
-	read_fill();
+	prep_fill();
 }
 
 u8 biterator::next()
 {
-	if (!fills && !ltrls) read_fill();
+	if (fls.empty()) prep_fill();
 
 	u8 res = 0;
-	if (fills) {
-		fills--;
-		res = fillv ? wah::DATA_BITS : U8(0);
-	} else if (ltrls) {
-		ltrls--;
+	if (fls.fills) {
+		fls.fills--;
+		res = fls.fillv ? wah::DATA_BITS : U8(0);
+	} else if (fls.ltrls) {
+		fls.ltrls--;
 		res = current_page_data[read_words++];
 	}
 	iterated += wah::WORD_LENGTH;
@@ -37,17 +37,17 @@ void biterator::skip_words(u4 words)
 		u4 skip;
 
 		// skip fills (will not progress read pos in page)
-		skip = std::min(words, fills);
-		std::cout << "skip " << skip << " fills of " << fills << std::endl;
-		fills -= skip;
+		skip = std::min(words, fls.fills);
+		std::cout << "skip " << skip << " fills of " << fls.fills << std::endl;
+		fls.fills -= skip;
 		words -= skip;
 		iterated += skip * wah::WORD_LENGTH;
 
 		// skip literals (progresses read pos in page)
-		skip = std::min(words, ltrls);
+		skip = std::min(words, fls.ltrls);
 		skip = std::min(skip, BM_DATA_WORDS - read_words); // but not past page end
-		std::cout << "skip " << skip << " ltrls of " << ltrls << std::endl;
-		ltrls -= skip;
+		std::cout << "skip " << skip << " ltrls of " << fls.ltrls << std::endl;
+		fls.ltrls -= skip;
 		words -= skip;
 		read_words += skip;
 		iterated += skip * wah::WORD_LENGTH;
@@ -63,7 +63,7 @@ void biterator::skip_words(u4 words)
 		}
 
 		// exhausted fill word? read next
-		if (!fills && !ltrls) read_fill();
+		if (fls.empty()) prep_fill();
 	}
 
 	std::cout << "done skipping" << std::endl;
@@ -77,25 +77,63 @@ void biterator::load_page(u4 page)
 	read_words = 0;
 }
 
-void biterator::read_fill()
+void biterator::prep_fill()
 {
 	wah::word_t current_fill = current_page_data[read_words];
 
 	if (!wah::isfill(current_fill)) {
-		ltrls += 1;
+		fls.ltrls += 1;
 		return;
 	}
 
-	fillv = wah::fillval(current_fill);
-	fills = wah::fillcnt(current_fill);
-	ltrls = wah::ltrlcnt(current_fill);
+	fls.read(current_fill);
 	read_words++;
 
-	std::cout << std::dec << "fill v " << fillv << " f " << fills << " l " << ltrls << std::endl << std::endl;
+	std::cout << std::dec << "fill v " << fls.fillv << " f " << fls.fills << " l " << fls.ltrls << std::endl << std::endl;
+}
+
+void boperator::init()
+{
+	children.push_back(&op0); children.push_back(&op1);
+	length = std::min(op0.length, op1.length);
+
+	prep_fill();
+}
+
+// read about details in scratch file: # biterator flow data manipulation
+void boperator::prep_fill()
+{
+	if (op0.fls.empty()) op0.prep_fill();
+	if (op1.fls.empty()) op1.prep_fill();
+
+	if (ope == AND) {
+		u4 n = 0;
+		if (op0.fls.fillv == false && op0.fls.fills)
+			n = op0.fls.fills;
+		if (op1.fls.fillv == false && op1.fls.fills && op1.fls.fills > n)
+			n = op1.fls.fills;
+		fls.set(false, n, 0);
+		op0.skip_words(n);
+		op1.skip_words(n);
+	} else if (ope == OR) {
+		u4 n = 0;
+		if (op0.fls.fillv == true && op0.fls.fills)
+			n = op0.fls.fills;
+		if (op1.fls.fillv == true && op1.fls.fills && op1.fls.fills > n)
+			n = op1.fls.fills;
+		fls.set(true, n, 0);
+		op0.skip_words(n);
+		op1.skip_words(n);
+	} // xor
+	
+	std::cout << std::dec << "bopfill v " << fls.fillv << " f " << fls.fills << " l " << fls.ltrls << std::endl << std::endl;
 }
 
 // main entry of evaluation algo
 u8 boperator::operate(callback cb, skip_fill_value skip_val)
 {
+	prep_fill();
 	cb(U8(256), 0);
+	// remember that thing about operating on stack vars
+	// instead of cascading virtual method calls
 }
