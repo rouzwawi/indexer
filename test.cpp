@@ -23,6 +23,51 @@ using namespace std;
 using namespace boost::interprocess;
 using boost::lexical_cast;
 
+namespace test {
+
+template <class T>
+struct b {
+	b(){} ~b(){}
+	inline string& p() { return static_cast<T*>(this)->v; }
+	inline int f() { return static_cast<T*>(this)->fimp(); }
+};
+
+#define perm(x,y,z) template <> struct n <x,y,z> : b< n<x,y,x> >
+#define vexp(x,y,z) string v; n():v("n " #x #y #z){}
+
+template <op T0, op T1, op T2> struct n : b< n<T0 , T1 , T2 > > {string v; n():v("n ___"){}};
+
+template <       op T1, op T2> struct n <X, T1, T2> : b< n<X, T1, T2> > {string v; n():v("n X__"){}};
+template <       op T1, op T2> struct n <A, T1, T2> : b< n<A, T1, T2> > {string v; n():v("n A__"){}};
+template <       op T1, op T2> struct n <O, T1, T2> : b< n<O, T1, T2> > {string v; n():v("n O__"){}};
+
+perm(X,O,D) { vexp(X,O,D) };
+perm(X,A,D) { vexp(X,A,D) };
+perm(X,X,D) { vexp(X,X,D) };
+perm(X,N,D) { vexp(X,N,D) };
+perm(A,O,D) { vexp(A,O,D) };
+perm(A,A,D) { vexp(A,A,D) };
+perm(A,X,D) { vexp(A,X,D) };
+perm(A,N,D) { vexp(A,N,D) };
+perm(O,O,D) { vexp(O,O,D) };
+perm(O,A,D) { vexp(O,A,D) };
+perm(O,X,D) { vexp(O,X,D) };
+perm(O,N,D) { vexp(O,N,D) };
+
+perm(O,D,D) { vexp(O,D,D) };
+perm(A,D,D) { vexp(A,D,D) };
+perm(X,D,D) { vexp(X,D,D) };
+
+perm(N,O,E) { vexp(N,O,E) };
+perm(N,A,E) { vexp(N,A,E) };
+perm(N,X,E) { vexp(N,X,E) };
+perm(N,N,E) { vexp(N,N,E) };
+perm(N,D,E) { vexp(N,D,E) };
+
+
+}
+using namespace test;
+
 void wah()
 {
 	std::cout << wah::WORD_LENGTH << std::endl;
@@ -102,6 +147,21 @@ int test_addr_calcs()
 
 int main(int argc, const char* argv[])
 {
+	// std::string uuu; cin >> uuu;
+	
+	n<X, A, D> n_XAD;
+	n<A, O, X> n_AOX;
+	n<O, X, D> n_OXD;
+	n<N, X, E> n_NXT;
+	
+	cout << n_XAD.p() << endl;
+	cout << n_AOX.p() << endl;
+	cout << n_OXD.p() << endl;
+	cout << n_NXT.p() << endl;
+	
+	// b<deriv<AND>>* bp = &fooand;
+	// cout << bp << endl;
+
 	test_addr_calcs();
 	test_itop();
 
@@ -168,7 +228,7 @@ int main(int argc, const char* argv[])
 			biterator it0(f, page);
 			biterator it1(f, page);
 			
-			boperator bop(OR, it0, it1);
+			boperator bop(O, it0, it1);
 			const list<noderator*>& c = bop.c();
 			for(list<noderator*>::const_iterator ct = c.begin(); ct != c.end(); ++ct)
 				cout << *ct << endl;

@@ -41,7 +41,7 @@ private:
 
 protected:
 	noderator() : length(0), iterated(0) {}
-	virtual ~noderator() {};
+	virtual ~noderator() {}
 
 	// iteration status
 	u8 length;
@@ -76,8 +76,8 @@ private:
 	wah::word_t* current_page_data;
 
 public:
-	biterator(mmf& file, u4 page) : file(file) { init(page); };
-	~biterator() {};
+	biterator(mmf& file, u4 page) : file(file) { init(page); }
+	~biterator() {}
 
 	virtual u8 next();
 	virtual void skip_words(u4 words);
@@ -113,7 +113,7 @@ public:
 	~boperator() {}
 
 	virtual u8 next() {};
-	virtual void skip_words(u4 words) {};
+	virtual void skip_words(u4 words);
 	virtual void prep_fill();
 
 	u8 operate(callback cb, skip_fill_value skip_val=SKIPNONE);

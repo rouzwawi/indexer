@@ -57,6 +57,20 @@ X3		^		1,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 invert for u words    | type:1op
 X4		^		_,0,x		_,0,y		_,0,u	| u = min(x,y) | literal op0 XOR op1       | type:2op_operate
 
 
+noderator hierarchy options
+
+NOT                   = 1
+OP2 in {OR, AND, XOR} = 3 (where OR and AND can have mirrored implementations)
+OPE = OP2 + NOT       = 4
+
+boperator<OP2> -> boperator<OPE> X boperator<OPE>			3x10 = 30
+boperator<OP2> -> boperator<OPE> x biterator				3x4  = 12 (also covers reversal of operands)
+boperator<OP2> -> biterator      X biterator				3x1  =  3
+boperator<NOT> -> boperator<OPE>							1x4  =  4
+boperator<NOT> -> biterator									1x1  =  1
+biterator
+
+
 
 ###############################################################################################
 # bitmap writing

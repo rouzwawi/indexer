@@ -3,10 +3,12 @@
 
 
 enum op {
-	OR,
-	AND,
-	XOR,
-	NOT
+	O, // or
+	A, // and
+	X, // xor
+	N, // not
+	D, // direct bitmap
+	E, // empty
 };
 
 

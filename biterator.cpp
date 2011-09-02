@@ -100,13 +100,18 @@ void boperator::init()
 	prep_fill();
 }
 
+void boperator::skip_words(u4 words)
+{
+	
+}
+
 // read about details in scratch file: # biterator flow data manipulation
 void boperator::prep_fill()
 {
 	if (op0.fls.empty()) op0.prep_fill();
 	if (op1.fls.empty()) op1.prep_fill();
 
-	if (ope == AND) {
+	if (ope == A) {
 		u4 n = 0;
 		if (op0.fls.fillv == false && op0.fls.fills)
 			n = op0.fls.fills;
@@ -115,7 +120,7 @@ void boperator::prep_fill()
 		fls.set(false, n, 0);
 		op0.skip_words(n);
 		op1.skip_words(n);
-	} else if (ope == OR) {
+	} else if (ope == O) {
 		u4 n = 0;
 		if (op0.fls.fillv == true && op0.fls.fills)
 			n = op0.fls.fills;
