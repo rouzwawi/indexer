@@ -2,4 +2,4 @@
 *.dep
 *.bin
 *.out
-data
+test-data*
