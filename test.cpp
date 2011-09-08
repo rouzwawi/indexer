@@ -29,7 +29,6 @@ template <class T>
 struct b {
 	b(){} ~b(){}
 	inline string& p() { return static_cast<T*>(this)->v; }
-	inline int f() { return static_cast<T*>(this)->fimp(); }
 };
 
 #define perm(x,y,z) template <> struct n <x,y,z> : b< n<x,y,x> >
@@ -216,6 +215,7 @@ int main(int argc, const char* argv[])
 			continue;
 		}
 
+		using namespace tmplt;
 		if (x == "o") {
 			cin >> y;
 			u4 page;
@@ -227,13 +227,18 @@ int main(int argc, const char* argv[])
 			}
 			biterator it0(f, page);
 			biterator it1(f, page);
-			
+
 			boperator bop(O, it0, it1);
+			cout << "children" << endl;
 			const list<noderator*>& c = bop.c();
 			for(list<noderator*>::const_iterator ct = c.begin(); ct != c.end(); ++ct)
 				cout << *ct << endl;
-			bop.operate(&test_callback);
-			
+			cout << "is op case 0 : " << op_case<tmplt::b<true>, VAR, DCR>::is(&bop, &bop) << endl;
+			cout << "is op case 1 : " << op_case<DCR, i<0>, VAR>::is(&bop, &bop) << endl;
+			cout << "skip some" << endl;
+			bop.skip_words(2);
+			cout << "is op case 1 : " << op_case<DCR, i<0>, VAR>::is(&bop, &bop) << endl;
+
 			continue;
 		}
 

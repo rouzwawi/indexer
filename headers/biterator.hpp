@@ -14,6 +14,7 @@
 using namespace boost::interprocess;
 using namespace std;
 
+
 struct fill_state {
 	fill_state() : fillv(0), fills(0), ltrls(0) {}
 
@@ -56,6 +57,7 @@ public:
 	bool has_next() { return iterated < length; }
 	u8 last_word_mask() { return (U8(1) << (length % wah::WORD_LENGTH)) - 1; }
 	const list<noderator*>& c() { return children; }
+	const fill_state& s() { return fls; }
 	
 	virtual u8 next() = 0;
 	virtual void skip_words(u4 words) = 0;
@@ -112,7 +114,7 @@ public:
 	boperator(const boperator& bop) : ope(bop.ope), op0(bop.op0), op1(bop.op1) { init(); }
 	~boperator() {}
 
-	virtual u8 next() {};
+	virtual u8 next();
 	virtual void skip_words(u4 words);
 	virtual void prep_fill();
 
@@ -121,5 +123,55 @@ public:
 private:
 	void init();
 };
+
+namespace tmplt {
+
+template <class T> struct maybe {};
+template <bool T> struct b {};
+template <u4 T>   struct i {};
+template <char T> struct v {};
+
+#define DCR maybe<bool>
+#define VAR v<'n'>
+#define bchk(n, bv) (n->s().fillv == bv)
+#define vchk(n, what) (n->s().what)
+#define zchk(n, what) (n->s().what == 0)
+
+template <class v, class f, class l> struct op_case {
+	static bool is(noderator* n0, noderator* n1) { return assert(false); }
+};
+template <class v0, class f0, class l0, class v1, class f1, class l1> struct op_case_asym {
+	static bool is(noderator* n0, noderator* n1) { return assert(false); }
+};
+// assymetric cases will test with swapped operator opositions
+
+template <bool bv> struct op_case_asym <b<bv>, VAR, DCR, DCR, DCR, DCR> { // assymetric
+	static inline bool is(noderator* n0, noderator* n1) {
+		return
+			(bchk(n0,bv) && vchk(n0,fills)) ||
+			(bchk(n1,bv) && vchk(n1,fills));
+	}
+};
+template <bool bv> struct op_case <b<bv>, VAR, DCR> {
+	static inline bool is(noderator* n0, noderator* n1) {
+		return
+			bchk(n0,bv) && vchk(n0,fills) && bchk(n1,bv) && vchk(n1,fills);
+	}
+};
+template <bool bv> struct op_case_asym <b<bv>, VAR, DCR, DCR, i<0>, VAR> { // assymetric
+	static inline bool is(noderator* n0, noderator* n1) {
+		return
+			(bchk(n0,bv) && vchk(n0,fills) && zchk(n1,fills) && vchk(n1,ltrls)) ||
+			(bchk(n1,bv) && vchk(n1,fills) && zchk(n0,fills) && vchk(n0,ltrls));
+	}
+};
+template <> struct op_case <DCR, i<0>, VAR> {
+	static inline bool is(noderator* n0, noderator* n1) {
+		return
+			(zchk(n0,fills) && vchk(n0,ltrls) && zchk(n1,fills) && vchk(n1,ltrls));
+	}
+};
+
+}
 
 #endif

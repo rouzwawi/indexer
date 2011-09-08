@@ -122,15 +122,15 @@ inline void bitmap::full_word(wah::word_t& w)
 {
 	w &= wah::DATA_BITS;
 	if (wah::allones(w) || wah::allzero(w)) { // compress
-		if ((w & wah::LTRL_BITS) == 0 && wah::samefill(*last_fill_word, w)) {
+		if ((*last_fill_word & wah::LTRL_BITS) == 0 && wah::samefill(*last_fill_word, w)) {
 			(*last_fill_word)++;
-			std::cout << "samefill " << std::hex << *last_fill_word << " " << w << std::endl;
+			std::cout << "samefill " << std::hex << *last_fill_word << " " << w << " @ " << last_fill_word << std::endl;
 			std::cout << "cw " << std::hex << current_word << " lf " << last_fill_word << std::endl << std::endl;
 		} else {
 			new_fill(wah::allones(w));
 			current_word++;
 			written_words++;
-			std::cout << "newfill " << std::hex << *last_fill_word << " " << w << std::endl;
+			std::cout << "newfill " << std::hex << *last_fill_word << " " << w << " @ " << last_fill_word << std::endl;
 			std::cout << "cw " << std::hex << current_word << " lf " << last_fill_word << std::endl << std::endl;
 		}
 	} else { // literal
@@ -185,7 +185,7 @@ inline void bitmap::new_fill(bool v)
 	load_fill();
 }
 
-void bitmap::load_fill()
+inline void bitmap::load_fill()
 {
 	u4 last_fill_page = first_page.last_fill_page();
 	u4 last_fill_pos  = first_page.last_fill_pos();
@@ -198,12 +198,12 @@ void bitmap::load_fill()
 	}
 }
 
-void bitmap::init_page(u4 page) 
+inline void bitmap::init_page(u4 page)
 {
 	init(file, page);
 }
 
-void bitmap::load_page(u4 page) 
+inline void bitmap::load_page(u4 page)
 {
 	current_page_num = page;
 	current_page_ptr = file.get_page(current_page_num);
@@ -217,7 +217,7 @@ void bitmap::load_page(u4 page)
 	current_word = current_page.data + written_words;
 }
 
-void bitmap::update_headers()
+inline void bitmap::update_headers()
 {
 	first_page.length(length);
 
