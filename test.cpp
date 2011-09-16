@@ -40,6 +40,8 @@ template <       op T1, op T2> struct n <X, T1, T2> : b< n<X, T1, T2> > {string 
 template <       op T1, op T2> struct n <A, T1, T2> : b< n<A, T1, T2> > {string v; n():v("n A__"){}};
 template <       op T1, op T2> struct n <O, T1, T2> : b< n<O, T1, T2> > {string v; n():v("n O__"){}};
 
+// two operator boperator cases  here
+
 perm(X,O,D) { vexp(X,O,D) };
 perm(X,A,D) { vexp(X,A,D) };
 perm(X,X,D) { vexp(X,X,D) };
@@ -233,11 +235,11 @@ int main(int argc, const char* argv[])
 			const list<noderator*>& c = bop.c();
 			for(list<noderator*>::const_iterator ct = c.begin(); ct != c.end(); ++ct)
 				cout << *ct << endl;
-			cout << "is op case 0 : " << op_case<tmplt::b<true>, VAR, DCR>::is(&bop, &bop) << endl;
-			cout << "is op case 1 : " << op_case<DCR, i<0>, VAR>::is(&bop, &bop) << endl;
+			cout << "is op case 0 : " << op_case<tmplt::b<true>, VAR, ANY>::is(&bop, &bop) << endl;
+			cout << "is op case 1 : " << op_case<ANY, i<0>, VAR>::is(&bop, &bop) << endl;
 			cout << "skip some" << endl;
 			bop.skip_words(2);
-			cout << "is op case 1 : " << op_case<DCR, i<0>, VAR>::is(&bop, &bop) << endl;
+			cout << "is op case 1 : " << op_case<ANY, i<0>, VAR>::is(&bop, &bop) << endl;
 
 			continue;
 		}

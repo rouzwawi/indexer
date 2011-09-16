@@ -172,34 +172,35 @@ void boperator::prep_fill()
 	if (op0.fls.empty()) op0.prep_fill();
 	if (op1.fls.empty()) op1.prep_fill();
 
-	if (ope == 0) {
+	if (ope == O) {
 		bool logic = ope == A ? false : true;
 		u4 n = 0;
 		u4 u = 0;
 
-		if (op_case_asym<b<true>, VAR, DCR, DCR, DCR, DCR>::is(&op0, &op1)) {
+		if (op_case_asym<b<true>, VAR, ANY, ANY, ANY, ANY>::is(&op0, &op1)) {
 			n = max(op0.fls.fills, op1.fls.fills);
 			assert(u==0);
-			op0.skip_words(n);
-			op1.skip_words(n);
-		} else
-		if (op_case<b<false>, VAR, DCR>::is(&op0, &op1)) {
+		}
+		if (op_case<b<false>, VAR, ANY>::is(&op0, &op1)) {
 			n = min(op0.fls.fills, op1.fls.fills);
 			assert(u==0);
 			logic = !logic;
-			op0.skip_words(n);
-			op1.skip_words(n);
-		} else
-		if (op_case_asym<b<false>, VAR, DCR, DCR, i<0>, VAR>::is(&op0, &op1)) {
+		}
+		if (op_case_asym<b<false>, VAR, ANY, ANY, i<0>, VAR>::is(&op0, &op1)) {
 			assert(n==0);
 			if (op0.fls.fills)
 				u = min(op0.fls.fills, op1.fls.ltrls);
 			else
 				u = min(op1.fls.fills, op0.fls.ltrls);
-		} else
-		if (op_case<DCR, i<0>, VAR>::is(&op0, &op1)) {
+		}
+		if (op_case<ANY, i<0>, VAR>::is(&op0, &op1)) {
 			assert(n==0);
 			u = min(op0.fls.ltrls, op1.fls.ltrls);
+		}
+
+		if (n) {
+			op0.skip_words(n);
+			op1.skip_words(n);
 		}
 
 		fls.set(logic, n, u);

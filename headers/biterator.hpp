@@ -126,12 +126,12 @@ private:
 
 namespace tmplt {
 
-template <class T> struct maybe {};
+struct maybe {};
 template <bool T> struct b {};
 template <u4 T>   struct i {};
 template <char T> struct v {};
 
-#define DCR maybe<bool>
+#define ANY maybe
 #define VAR v<'n'>
 #define bchk(n, bv) (n->s().fillv == bv)
 #define vchk(n, what) (n->s().what)
@@ -145,27 +145,27 @@ template <class v0, class f0, class l0, class v1, class f1, class l1> struct op_
 };
 // assymetric cases will test with swapped operator opositions
 
-template <bool bv> struct op_case_asym <b<bv>, VAR, DCR, DCR, DCR, DCR> { // assymetric
+template <bool bv> struct op_case_asym <b<bv>, VAR, ANY, ANY, ANY, ANY> { // assymetric
 	static inline bool is(noderator* n0, noderator* n1) {
 		return
 			(bchk(n0,bv) && vchk(n0,fills)) ||
 			(bchk(n1,bv) && vchk(n1,fills));
 	}
 };
-template <bool bv> struct op_case <b<bv>, VAR, DCR> {
+template <bool bv> struct op_case <b<bv>, VAR, ANY> {
 	static inline bool is(noderator* n0, noderator* n1) {
 		return
 			bchk(n0,bv) && vchk(n0,fills) && bchk(n1,bv) && vchk(n1,fills);
 	}
 };
-template <bool bv> struct op_case_asym <b<bv>, VAR, DCR, DCR, i<0>, VAR> { // assymetric
+template <bool bv> struct op_case_asym <b<bv>, VAR, ANY, ANY, i<0>, VAR> { // assymetric
 	static inline bool is(noderator* n0, noderator* n1) {
 		return
 			(bchk(n0,bv) && vchk(n0,fills) && zchk(n1,fills) && vchk(n1,ltrls)) ||
 			(bchk(n1,bv) && vchk(n1,fills) && zchk(n0,fills) && vchk(n0,ltrls));
 	}
 };
-template <> struct op_case <DCR, i<0>, VAR> {
+template <> struct op_case <ANY, i<0>, VAR> {
 	static inline bool is(noderator* n0, noderator* n1) {
 		return
 			(zchk(n0,fills) && vchk(n0,ltrls) && zchk(n1,fills) && vchk(n1,ltrls));
