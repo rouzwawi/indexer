@@ -2,6 +2,8 @@
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 #include <map>
 #include <list>
 #include <iterator>
@@ -146,6 +148,54 @@ int test_addr_calcs()
 	return 0;
 }
 
+u4 get_or_alloc(std::string& fileName, fs& fileSystem)
+{
+	u4 page;
+	if(fileSystem.has_file(fileName.c_str())) {
+		cout << "file '" << fileName << "' exists @ page " << hex << (page = fileSystem.get_file_page(fileName.c_str())) << endl;
+	} else {
+		page = fileSystem.create_file(fileName.c_str());
+		bitmap::init(fileSystem.get_file(), page);
+		cout << "allocated '" << fileName << "' @ page " << hex << page << endl;
+	}
+	return page;
+}
+
+void test_inverses(fs& fileSystem)
+{
+	std::string f0("inv-file0");
+	std::string f1("inv-file1");
+	u4 page_f0 = get_or_alloc(f0, fileSystem);
+	u4 page_f1 = get_or_alloc(f1, fileSystem);
+
+	bitmap bm0(fileSystem.get_file(), page_f0);
+	bitmap bm1(fileSystem.get_file(), page_f1);
+	u8 bits[] = {U8(0)};
+	int dens = 97;
+
+//	for (int i=0; i<1024; i++) {
+//		bits[0] = U8(0);
+//		for (int b=0; b<wah::WORD_LENGTH; b++)
+//			if (rand() % 100 < dens) bits[0] |= U8(1) << b;
+//		bm0.append(bits, wah::WORD_LENGTH);
+//		bits[0] = ~bits[0]; // inv
+//		bm1.append(bits, wah::WORD_LENGTH);
+//	}
+
+	biterator it0(fileSystem.get_file(), page_f0);
+	biterator it1(fileSystem.get_file(), page_f1);	
+	boperator bop(O, it0, it1);
+	
+	boost::posix_time::ptime ts(boost::posix_time::microsec_clock::universal_time());
+	while (bop.has_next()) {
+		u8 nxt = bop.next();
+		assert(nxt == wah::DATA_BITS);
+	}
+	boost::posix_time::ptime te(boost::posix_time::microsec_clock::universal_time());
+	cout << "iterated " << dec << bop.bits() << " bits in " << (te-ts).total_microseconds() << " us" << endl;
+	cout << "rate " << bop.bits() / (te-ts).total_microseconds() << " bits/us" << endl;
+}
+
 int main(int argc, const char* argv[])
 {
 	// std::string uuu; cin >> uuu;
@@ -181,7 +231,7 @@ int main(int argc, const char* argv[])
 	while (cin >> x) {
 		if (x == "q") exit(0);
 
-		if (x == "a") {
+		if (x == "a") { // append
 			cin >> y;
 			u4 page;
 			if(fileSystem.has_file(y.c_str())) {
@@ -198,7 +248,39 @@ int main(int argc, const char* argv[])
 			continue;
 		}
 
-		if (x == "i") {
+		if (x == "b") {
+			test_inverses(fileSystem);
+			continue;
+		}
+
+		if (x == "d") { // density fill
+			cin >> y;
+			u4 dens, n;
+			stringstream ss;
+			cin >> x;
+			ss << dec << x; ss >> n; ss.clear();
+			cin >> x;
+			ss << dec << x; ss >> dens;
+			u4 page;
+			if(fileSystem.has_file(y.c_str())) {
+				cout << "file '" << y << "' exists @ page " << hex << (page = fileSystem.get_file_page(y.c_str())) << endl;
+			} else {
+				page = fileSystem.create_file(y.c_str());
+				bitmap::init(f, page);
+				cout << "allocated '" << y << "' @ page " << hex << page << endl;
+			}
+			bitmap bm(f, page);
+			for (int i=0; i<n; i++) {
+				u8 bits[] = {U8(0)};
+				for (int b=0; b<wah::WORD_LENGTH; b++)
+					if (rand() % 100 < dens) bits[0] |= U8(1) << b;
+				cout << "appending " << hex << bits[0] << endl;
+				bm.append(bits, wah::WORD_LENGTH);
+			}
+			continue;
+		}
+
+		if (x == "i") { // iterate
 			cin >> y;
 			u4 page;
 			if(fileSystem.has_file(y.c_str())) {
@@ -218,7 +300,7 @@ int main(int argc, const char* argv[])
 		}
 
 		using namespace tmplt;
-		if (x == "o") {
+		if (x == "o") { // operate
 			cin >> y;
 			u4 page;
 			if(fileSystem.has_file(y.c_str())) {
@@ -235,16 +317,16 @@ int main(int argc, const char* argv[])
 			const list<noderator*>& c = bop.c();
 			for(list<noderator*>::const_iterator ct = c.begin(); ct != c.end(); ++ct)
 				cout << *ct << endl;
-			cout << "is op case 0 : " << op_case<tmplt::b<true>, VAR, ANY>::is(&bop, &bop) << endl;
-			cout << "is op case 1 : " << op_case<ANY, i<0>, VAR>::is(&bop, &bop) << endl;
+			cout << "is op case 0 : " << op_case<bol, var, any>::is(true, &bop, &bop) << endl;
+			cout << "is op case 1 : " << op_case<any, zer, var>::is(&bop, &bop) << endl;
 			cout << "skip some" << endl;
 			bop.skip_words(2);
-			cout << "is op case 1 : " << op_case<ANY, i<0>, VAR>::is(&bop, &bop) << endl;
+			cout << "is op case 1 : " << op_case<any, zer, var>::is(&bop, &bop) << endl;
 
 			continue;
 		}
 
-		if (x == "s") {
+		if (x == "s") { // skip
 			cin >> y;
 			u4 page;
 			if(fileSystem.has_file(y.c_str())) {
@@ -259,7 +341,7 @@ int main(int argc, const char* argv[])
 			continue;
 		}
 
-		if (x == "w") {
+		if (x == "w") { // write
 			cin >> y;
 			
 			if(fileSystem.has_file(y.c_str())) {

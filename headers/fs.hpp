@@ -41,7 +41,9 @@ public:
 	u4 get_file_page(const char* filename);
 	u4 create_file(const char* filename);
 	bool has_file(const char* filename);
-	
+
+	mmf& get_file() { return file; }
+
 	static void init(mmf& file);
 
 private:

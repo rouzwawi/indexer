@@ -33,7 +33,7 @@ public:
 	static inline bool allones(word_t w) { return (w & DATA_BITS) == DATA_BITS; }
 	static inline bool allzero(word_t w) { return (w & DATA_BITS) == 0; }
 	
-	static inline word_t incr_ltrl(word_t w) { return w += (U8(1) << 31); }
+	static inline void incr_ltrl(word_t* w) { *w += (U8(1) << 31); }
 };
 
 

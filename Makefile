@@ -1,4 +1,4 @@
-TARGET  := indexer.out
+TARGET  := indexer-make.out
 SRCS    := test.cpp mmf.cpp fs.cpp bitmap.cpp biterator.cpp
 OBJS    := ${SRCS:.cpp=.o} 
 DEPS    := ${SRCS:.cpp=.dep} 

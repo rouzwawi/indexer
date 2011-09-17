@@ -55,6 +55,7 @@ protected:
 
 public:
 	bool has_next() { return iterated < length; }
+	u8 bits() { return length; }
 	u8 last_word_mask() { return (U8(1) << (length % wah::WORD_LENGTH)) - 1; }
 	const list<noderator*>& c() { return children; }
 	const fill_state& s() { return fls; }
@@ -87,6 +88,7 @@ public:
 
 private:
 	void init(u4 page);
+	void maybe_next_page();
 	void load_page(u4 page);
 };
 
@@ -126,46 +128,41 @@ private:
 
 namespace tmplt {
 
-struct maybe {};
-template <bool T> struct b {};
-template <u4 T>   struct i {};
-template <char T> struct v {};
+struct any {};
+struct bol {};
+struct var {};
+struct zer {};
 
-#define ANY maybe
-#define VAR v<'n'>
-#define bchk(n, bv) (n->s().fillv == bv)
+#define bchk(n, logic) (n->s().fillv == logic)
 #define vchk(n, what) (n->s().what)
 #define zchk(n, what) (n->s().what == 0)
 
-template <class v, class f, class l> struct op_case {
-	static bool is(noderator* n0, noderator* n1) { return assert(false); }
-};
-template <class v0, class f0, class l0, class v1, class f1, class l1> struct op_case_asym {
-	static bool is(noderator* n0, noderator* n1) { return assert(false); }
-};
-// assymetric cases will test with swapped operator opositions
+template <class v, class f, class l> struct op_case {};
+template <class v0, class f0, class l0, class v1, class f1, class l1> struct op_case_asym {};
 
-template <bool bv> struct op_case_asym <b<bv>, VAR, ANY, ANY, ANY, ANY> { // assymetric
-	static inline bool is(noderator* n0, noderator* n1) {
+/* assymetric cases will test with swapped operator opositions */
+
+template <> struct op_case_asym <bol, var, any, any, any, any> { // assymetric
+	static inline bool is(bool bool0, noderator* n0, noderator* n1) {
 		return
-			(bchk(n0,bv) && vchk(n0,fills)) ||
-			(bchk(n1,bv) && vchk(n1,fills));
+			(bchk(n0,bool0) && vchk(n0,fills)) ||
+			(bchk(n1,bool0) && vchk(n1,fills));
 	}
 };
-template <bool bv> struct op_case <b<bv>, VAR, ANY> {
-	static inline bool is(noderator* n0, noderator* n1) {
+template <> struct op_case <bol, var, any> {
+	static inline bool is(bool bool0, noderator* n0, noderator* n1) {
 		return
-			bchk(n0,bv) && vchk(n0,fills) && bchk(n1,bv) && vchk(n1,fills);
+			bchk(n0,bool0) && vchk(n0,fills) && bchk(n1,bool0) && vchk(n1,fills);
 	}
 };
-template <bool bv> struct op_case_asym <b<bv>, VAR, ANY, ANY, i<0>, VAR> { // assymetric
-	static inline bool is(noderator* n0, noderator* n1) {
+template <> struct op_case_asym <bol, var, any, any, zer, var> { // assymetric
+	static inline bool is(bool bool0, noderator* n0, noderator* n1) {
 		return
-			(bchk(n0,bv) && vchk(n0,fills) && zchk(n1,fills) && vchk(n1,ltrls)) ||
-			(bchk(n1,bv) && vchk(n1,fills) && zchk(n0,fills) && vchk(n0,ltrls));
+			(bchk(n0,bool0) && vchk(n0,fills) && zchk(n1,fills) && vchk(n1,ltrls)) ||
+			(bchk(n1,bool0) && vchk(n1,fills) && zchk(n0,fills) && vchk(n0,ltrls));
 	}
 };
-template <> struct op_case <ANY, i<0>, VAR> {
+template <> struct op_case <any, zer, var> {
 	static inline bool is(noderator* n0, noderator* n1) {
 		return
 			(zchk(n0,fills) && vchk(n0,ltrls) && zchk(n1,fills) && vchk(n1,ltrls));

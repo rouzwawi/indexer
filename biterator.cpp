@@ -12,7 +12,7 @@ void biterator::init(u4 page)
 	prep_fill();
 }
 
-u8 biterator::next()
+inline u8 biterator::next()
 {
 	if (fls.empty()) prep_fill();
 
@@ -23,23 +23,27 @@ u8 biterator::next()
 	} else if (fls.ltrls) {
 		fls.ltrls--;
 		res = current_page_data[read_words++];
+		maybe_next_page();
 	}
 	iterated += wah::WORD_LENGTH;
 	return res;
 }
 
-void biterator::skip_words(u4 words)
+inline void biterator::skip_words(u4 words)
 {
-	std::cout << std::dec;
 	while (words > 0) {
-		std::cout << "." << words << std::endl;
-		std::cout << "rw @ " << read_words << std::endl;
+#ifdef _DEBUG
+		std::cerr << "." << words << std::endl;
+		std::cerr << "rw @ " << read_words << std::endl;
+#endif
 		u4 skip;
 
 		// skip fills (will not progress read pos in page)
 		skip = std::min(words, fls.fills);
 		if (skip) {
-			std::cout << "bit skip " << skip << " fills of " << fls.fills << std::endl;
+#ifdef _DEBUG
+			std::cerr << "bit skip " << skip << " fills of " << fls.fills << std::endl;
+#endif
 			fls.fills -= skip;
 			words -= skip;
 			iterated += skip * wah::WORD_LENGTH;
@@ -49,31 +53,43 @@ void biterator::skip_words(u4 words)
 		skip = std::min(words, fls.ltrls);
 		skip = std::min(skip, BM_DATA_WORDS - read_words); // not past page end
 		if (skip) {
-			std::cout << "bit skip " << skip << " ltrls of " << fls.ltrls << std::endl;
+#ifdef _DEBUG
+			std::cerr << "bit skip " << skip << " ltrls of " << fls.ltrls << std::endl;
+#endif
 			fls.ltrls -= skip;
 			words -= skip;
 			iterated += skip * wah::WORD_LENGTH;
 			read_words += skip;
-			std::cout << "rw @ " << read_words << std::endl;
+#ifdef _DEBUG
+			std::cerr << "rw @ " << read_words << std::endl;
+#endif
 		}
 
 		// done skipping or is bitmap exhausted?
 		if (words == 0 || !has_next()) break;
 
-		// end of page? load next page
-		if (read_words == BM_DATA_WORDS) {
-			std::cout << "bit next page " << current_page.next_page() << std::endl;
-			load_page(current_page.next_page());
-		}
+		maybe_next_page();
 
 		// exhausted fill word? read next
 		if (fls.empty()) prep_fill();
 	}
-
-	std::cout << "done skipping biterator" << std::endl;
+#ifdef _DEBUG
+	std::cerr << "done skipping biterator" << std::endl;
+#endif
 }
 
-void biterator::load_page(u4 page)
+inline void biterator::maybe_next_page()
+{
+	// end of page? load next page
+	if (read_words == BM_DATA_WORDS) {
+#ifdef _DEBUG
+		std::cerr << "bit next page " << current_page.next_page() << std::endl;
+#endif
+		load_page(current_page.next_page());
+	}
+}
+
+inline void biterator::load_page(u4 page)
 {
 	void* current_page_ptr = file.get_page(page);
 	current_page = bitmap_page(current_page_ptr);
@@ -81,7 +97,7 @@ void biterator::load_page(u4 page)
 	read_words = 0;
 }
 
-void biterator::prep_fill()
+inline void biterator::prep_fill()
 {
 	wah::word_t current_fill = current_page_data[read_words];
 
@@ -92,9 +108,12 @@ void biterator::prep_fill()
 
 	fls.read(current_fill);
 	read_words++;
+	maybe_next_page();
 
-	std::cout << std::dec << "fill v " << fls.fillv << " f " << fls.fills
+#ifdef _DEBUG
+	std::cerr << std::dec << "fill v " << fls.fillv << " f " << fls.fills
 				<< " l " << fls.ltrls << std::endl << std::endl;
+#endif
 }
 
 void boperator::init()
@@ -105,7 +124,7 @@ void boperator::init()
 	prep_fill();
 }
 
-u8 boperator::next()
+inline u8 boperator::next()
 {
 	if (fls.empty()) prep_fill();
 
@@ -128,16 +147,20 @@ u8 boperator::next()
 	return res;
 }
 
-void boperator::skip_words(u4 words)
+inline void boperator::skip_words(u4 words)
 {
 	while (words > 0) {
-		std::cout << ".." << words << std::endl;
+#ifdef _DEBUG
+		std::cerr << ".." << words << std::endl;
+#endif
 		u4 skip;
 
 		// skip fills
 		skip = std::min(words, fls.fills);
 		if (skip) {
-			std::cout << "bop skip " << skip << " fills of " << fls.fills << std::endl;
+#ifdef _DEBUG
+			std::cerr << "bop skip " << skip << " fills of " << fls.fills << std::endl;
+#endif
 			fls.fills -= skip;
 			words -= skip;
 			iterated += skip * wah::WORD_LENGTH;
@@ -146,7 +169,9 @@ void boperator::skip_words(u4 words)
 		// skip literals (progresses read of operands)
 		skip = std::min(words, fls.ltrls);
 		if (skip) {
-			std::cout << "bop skip " << skip << " ltrls of " << fls.ltrls << std::endl;
+#ifdef _DEBUG
+			std::cerr << "bop skip " << skip << " ltrls of " << fls.ltrls << std::endl;
+#endif
 			fls.ltrls -= skip;
 			words -= skip;
 			iterated += skip * wah::WORD_LENGTH;
@@ -160,40 +185,41 @@ void boperator::skip_words(u4 words)
 		// done skipping or is bitmap exhausted?
 		if (words == 0 || !has_next()) break;
 	}
-
-	std::cout << "done skipping boperator" << std::endl;
+#ifdef _DEBUG
+	std::cerr << "done skipping boperator" << std::endl;
+#endif
 }
 
 // read about details in scratch file: # biterator flow data manipulation
-void boperator::prep_fill()
+inline void boperator::prep_fill()
 {
 	using namespace tmplt;
 
 	if (op0.fls.empty()) op0.prep_fill();
 	if (op1.fls.empty()) op1.prep_fill();
 
-	if (ope == O) {
-		bool logic = ope == A ? false : true;
+	if (ope == O || ope == A) {
+		bool logic = ope == O;
 		u4 n = 0;
 		u4 u = 0;
 
-		if (op_case_asym<b<true>, VAR, ANY, ANY, ANY, ANY>::is(&op0, &op1)) {
+		if (op_case_asym<bol, var, any, any, any, any>::is(logic, &op0, &op1)) {
 			n = max(op0.fls.fills, op1.fls.fills);
 			assert(u==0);
-		}
-		if (op_case<b<false>, VAR, ANY>::is(&op0, &op1)) {
+		} else
+		if (op_case<bol, var, any>::is(!logic, &op0, &op1)) {
 			n = min(op0.fls.fills, op1.fls.fills);
 			assert(u==0);
 			logic = !logic;
-		}
-		if (op_case_asym<b<false>, VAR, ANY, ANY, i<0>, VAR>::is(&op0, &op1)) {
+		} else 
+		if (op_case_asym<bol, var, any, any, zer, var>::is(!logic, &op0, &op1)) {
 			assert(n==0);
 			if (op0.fls.fills)
 				u = min(op0.fls.fills, op1.fls.ltrls);
 			else
 				u = min(op1.fls.fills, op0.fls.ltrls);
-		}
-		if (op_case<ANY, i<0>, VAR>::is(&op0, &op1)) {
+		} else
+		if (op_case<any, zer, var>::is(&op0, &op1)) {
 			assert(n==0);
 			u = min(op0.fls.ltrls, op1.fls.ltrls);
 		}
@@ -203,12 +229,18 @@ void boperator::prep_fill()
 			op1.skip_words(n);
 		}
 
+		// set fill state according to flow rules
 		fls.set(logic, n, u);
+	} else if (ope == N) {
+		// TODO: implement NOT flow rules
+	} else /* X */ {
+		assert(false); // make sure XOR is not used
 	}
-	// TODO: and xor ...
 	
-	std::cout << std::dec << "bopfill v " << fls.fillv << " f " << fls.fills
+#ifdef _DEBUG
+	std::cerr << std::dec << "bopfill v " << fls.fillv << " f " << fls.fills
 				<< " l " << fls.ltrls << std::endl << std::endl;
+#endif
 }
 
 // main entry of evaluation algo

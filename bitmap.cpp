@@ -43,7 +43,6 @@ void bitmap::append(u8* buffer, int bits)
 		register wah::word_t cw = *current_word;
 		for (int i=0; i<words;) {
 			int bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
-			std::cout << "two phase bulk " << std::dec << bulk_words << std::endl << std::endl;
 			for (int j=0; j<bulk_words; j++) {
 				u8 data = buffer[i + j];
 
@@ -65,7 +64,6 @@ void bitmap::append(u8* buffer, int bits)
 		// single-phase transfer of full words
 		for (int i=0; i<words;) {
 			int bulk_words = std::min(BM_DATA_WORDS - written_words, words - i);
-			std::cout << "single phase bulk " << std::dec << bulk_words << std::endl << std::endl;
 			for (int j=0; j<bulk_words; j++) {
 				full_word(buffer[i + j]);
 			}
@@ -82,14 +80,10 @@ void bitmap::append(u8* buffer, int bits)
 
 		lo_len = std::min(remain, (BM_DATA_BITS - cw_offset));
 		hi_len = remain - lo_len;
-		std::cout << "remain lo, hi, data " << std::dec << lo_len << ", " << hi_len << ", " << std::hex << data << std::endl;
-		std::cout << "cwo " << std::dec << cw_offset << std::endl;
 
 		*current_word |= data << cw_offset;
 		cw_offset += lo_len;
 		cw_offset %= BM_DATA_BITS;
-
-		std::cout << "cwo " << std::dec << cw_offset << " cw " << std::hex << *current_word << std::endl << std::endl;
 
 		if (!cw_offset) { // word is full
 			full_word(*current_word);
@@ -99,7 +93,6 @@ void bitmap::append(u8* buffer, int bits)
 		if (hi_len) { // bits for next word
 			*current_word |= data >> lo_len;
 			cw_offset += hi_len;
-			std::cout << "cwo " << std::dec << cw_offset << " cw " << std::hex << *current_word << std::endl << std::endl;
 		}
 	}
 
@@ -124,22 +117,16 @@ inline void bitmap::full_word(wah::word_t& w)
 	if (wah::allones(w) || wah::allzero(w)) { // compress
 		if ((*last_fill_word & wah::LTRL_BITS) == 0 && wah::samefill(*last_fill_word, w)) {
 			(*last_fill_word)++;
-			std::cout << "samefill " << std::hex << *last_fill_word << " " << w << " @ " << last_fill_word << std::endl;
-			std::cout << "cw " << std::hex << current_word << " lf " << last_fill_word << std::endl << std::endl;
 		} else {
 			new_fill(wah::allones(w));
 			current_word++;
 			written_words++;
-			std::cout << "newfill " << std::hex << *last_fill_word << " " << w << " @ " << last_fill_word << std::endl;
-			std::cout << "cw " << std::hex << current_word << " lf " << last_fill_word << std::endl << std::endl;
 		}
 	} else { // literal
 		*current_word = w;
-		*last_fill_word = wah::incr_ltrl(*last_fill_word);
+		wah::incr_ltrl(last_fill_word);
 		current_word++;
 		written_words++;
-		std::cout << "ltrlfill " << std::hex << *last_fill_word << " " << w << std::endl;
-		std::cout << "cw " << std::hex << current_word << " lf " << last_fill_word << std::endl << std::endl;
 	}
 }
 
@@ -147,9 +134,6 @@ inline void bitmap::full_page()
 {
 	// do we actually have a full page?
 	if (written_words != BM_DATA_WORDS) return;
-
-	std::cout << "full page cp" << std::hex << current_page_num << std::endl << std::endl;
-	std::cout << "cw" << std::hex << current_word << " lf " << last_fill_word << std::endl << std::endl;
 
 	// save actual offset value since a full page can occur during 2-phase transfers
 	u4 cwo = cw_offset;
