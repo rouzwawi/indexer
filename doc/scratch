@@ -13,6 +13,18 @@ current_word_offset  number of written bits in current_word
 
 
 ###############################################################################################
+# some performance tests
+
+bitmap | bitmap
+10063872 bits per bitmap, 97% density
+1000 trials
+
+@ 9fb78a6
+mean   : 3175 bits/us
+median : 3279 bits/us
+
+
+###############################################################################################
 # biterator flow data manipulation
 
 b0 ^ ( b1 & b2 )
@@ -69,7 +81,6 @@ boperator<OP2> -> biterator      X biterator          3x1  =  3
 boperator<NOT> -> boperator<OPE>                      1x4  =  4
 boperator<NOT> -> biterator                           1x1  =  1
 biterator
-
 
 
 ###############################################################################################
@@ -135,6 +146,7 @@ file
    _DDDDDDD _XXXXDDD _YYYYXXX _....YYY
             _3210... _3210654 _....654
    ^ filled ^ filled ^ filled ^current
+
 
 ###############################################################################################
 file     size  regions  regions  up to    region   addrs

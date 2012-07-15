@@ -53,11 +53,12 @@ u4[16] = array of sixteen u4's
 
 ==== bitmap_data_page ====
    u4             0x706d7462        # magic word 'btmp'
-   u4             last_fill_page    # pointer to page that contains the last fill word
-   u4             last_page         # last page of bitmap (only on first page of bitmap)
    u4             next_page         # 
    u4             written_words     # words written in this page
    u4             cw_offset         # written bits in current word
+   u8             length            # length of bitmap in bits
+   u4             last_page         # last page of bitmap (only on first page of bitmap)
+   u4             last_fill_page    # pointer to page that contains the last fill word
    u4             last_fill_offset  # offset relative to page, for last fill word
    u4[--]         reserved          # empty for future header use
    u8[504]        data              # bitmap data in WAH code
