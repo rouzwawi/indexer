@@ -170,28 +170,37 @@ void test_inverses(fs& fileSystem)
 
    bitmap bm0(fileSystem.get_file(), page_f0);
    bitmap bm1(fileSystem.get_file(), page_f1);
-   u8 bits[] = {U8(0)};
+   u8 bits[512];
+   u8 bivs[512];
    int dens = 997;
 
-   for (int i=0; i<256*1024; i++) {
-      bits[0] = U8(0);
+   for (int j=0; j<512; j++) {
+      bits[j] = U8(0);
       for (int b=0; b<wah::WORD_LENGTH; b++)
-         if (rand() % 1000 < dens) bits[0] |= U8(1) << b;
-      bm0.append(bits, wah::WORD_LENGTH);
-      bits[0] = ~bits[0]; // inv
-      bm1.append(bits, wah::WORD_LENGTH);
+         if (rand() % 1000 < dens) bits[j] |= U8(1) << b;
+      bivs[j] = ~bits[j]; // inv
    }
+
+   boost::posix_time::ptime ts(boost::posix_time::microsec_clock::universal_time());
+   for (int i=0; i<4*1024; i++) {
+      bm0.append(bits, 512*wah::WORD_LENGTH);
+      bm1.append(bivs, 512*wah::WORD_LENGTH);
+   }
+   boost::posix_time::ptime te(boost::posix_time::microsec_clock::universal_time());
+   cout << "wrote " << dec << 512*4*1024*wah::WORD_LENGTH << " bits in " << (te-ts).total_microseconds() << " us" << endl;
+   cout << "rate " << 512*4*1024*wah::WORD_LENGTH / (te-ts).total_microseconds() << " bits/us" << endl;
+   cout << endl;
 
    biterator it0(fileSystem.get_file(), page_f0);
    biterator it1(fileSystem.get_file(), page_f1);
    boperator bop(O, it0, it1);
 
-   boost::posix_time::ptime ts(boost::posix_time::microsec_clock::universal_time());
+   ts = boost::posix_time::ptime(boost::posix_time::microsec_clock::universal_time());
    while (bop.has_next()) {
       u8 nxt = bop.next();
       assert(nxt == wah::DATA_BITS);
    }
-   boost::posix_time::ptime te(boost::posix_time::microsec_clock::universal_time());
+   te = boost::posix_time::ptime(boost::posix_time::microsec_clock::universal_time());
    cout << "iterated " << dec << bop.bits() << " bits in " << (te-ts).total_microseconds() << " us" << endl;
    cout << "rate " << bop.bits() / (te-ts).total_microseconds() << " bits/us" << endl;
 }

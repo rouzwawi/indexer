@@ -4,6 +4,8 @@ OBJS    := ${SRCS:.cpp=.o}
 DEPS    := ${SRCS:.cpp=.dep}
 XDEPS   := $(wildcard ${DEPS})
 
+DEBUG = 
+
 CCFLAGS = -O2
 LDFLAGS = -O2
 LIBS    =
@@ -21,7 +23,7 @@ ${TARGET}: ${OBJS}
 	${COMPILER} ${LDFLAGS} ${LIBS} -o $@ $^ ${LIBS}
 
 ${OBJS}: %.o: %.cpp %.dep
-	${COMPILER} ${CCFLAGS} ${LIBS} -o $@ -c $<
+	${COMPILER} ${CCFLAGS} ${DEBUG} ${LIBS} -o $@ -c $<
 
 ${DEPS}: %.dep: %.cpp Makefile
 	${COMPILER} ${CCFLAGS} ${LIBS} -MM $< > $@
