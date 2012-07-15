@@ -1,15 +1,15 @@
 ###############################################################################################
 # bitmap meta-data
 
-length				number of actual bits in bitmap
+length               number of actual bits in bitmap
 
-last_fill_page		the page that acontains the last written fill word
-last_fill_word		position of last written fill word in last_fill_page
+last_fill_page       the page that acontains the last written fill word
+last_fill_word       position of last written fill word in last_fill_page
 
-current_page		the page that contains the end of the written bitmap
-written_words		number of physical words written on current page
-current_word		the active word, ie the end of the written bitmap
-current_word_offset	number of written bits in current_word
+current_page         the page that contains the end of the written bitmap
+written_words        number of physical words written on current page
+current_word         the active word, ie the end of the written bitmap
+current_word_offset  number of written bits in current_word
 
 
 ###############################################################################################
@@ -30,31 +30,31 @@ two opeands with fill (0/1) and ltrl counts, expressed
 <[01]>,<[ijn_]>,<[xyu_]>
 
 examples
-0,i,x		i fills of 0 then x literals
-1,i,x		i fills of 1 then x literals
-0,i,_		i fills of 0 then any number of literals
-_,i,x		i fills of any value then x literals
-_,0,x		no fills then x literals
-_,_,_		dont care at all
+0,i,x       i fills of 0 then x literals
+1,i,x       i fills of 1 then x literals
+0,i,_       i fills of 0 then any number of literals
+_,i,x       i fills of any value then x literals
+_,0,x       no fills then x literals
+_,_,_       dont care at all
 
 operands are commutative, so cases with op0 and op1 reversed are same
 
-case	ope		op0			op1			res
-A0		&		0,i,_		_,_,_		0,i,0	|              | op0.skip(i) | op1.skip(i) | type:fill_seq
-A1		&		1,i,_		1,j,_		1,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-A2		&		1,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 direct for u words    | type:1op_direct
-A3		&		_,0,x		_,0,y		_,0,u	| u = min(x,y) | literal op0 AND op1       | type:2op_operate
+case   ope      op0        op1        res
+A0      &      0,i,_      _,_,_      0,i,0   |              | op0.skip(i) | op1.skip(i) | type:fill_seq
+A1      &      1,i,_      1,j,_      1,n,0   | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+A2      &      1,i,_      _,0,y      _,0,u   | u = min(i,y) | op1 direct for u words    | type:1op_direct
+A3      &      _,0,x      _,0,y      _,0,u   | u = min(x,y) | literal op0 AND op1       | type:2op_operate
 
-O0		|		1,i,_		_,_,_		1,i,0	|              | op0.skip(i) | op1.skip(i) | type:fill_seq
-O1		|		0,i,_		0,j,_		0,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-O2		|		0,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 direct for u words    | type:1op_direct
-O3		|		_,0,x		_,0,y		_,0,u	| u = min(x,y) | literal op0 OR op1        | type:2op_operate
+O0      |      1,i,_      _,_,_      1,i,0   |              | op0.skip(i) | op1.skip(i) | type:fill_seq
+O1      |      0,i,_      0,j,_      0,n,0   | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+O2      |      0,i,_      _,0,y      _,0,u   | u = min(i,y) | op1 direct for u words    | type:1op_direct
+O3      |      _,0,x      _,0,y      _,0,u   | u = min(x,y) | literal op0 OR op1        | type:2op_operate
 
-X0		^		0,i,_		1,j,_		1,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-X1		^		X,i,_		X,j,_		0,n,0	| n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
-X2		^		0,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 direct for u words    | type:1op_direct
-X3		^		1,i,_		_,0,y		_,0,u	| u = min(i,y) | op1 invert for u words    | type:1op_invert
-X4		^		_,0,x		_,0,y		_,0,u	| u = min(x,y) | literal op0 XOR op1       | type:2op_operate
+X0      ^      0,i,_      1,j,_      1,n,0   | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+X1      ^      X,i,_      X,j,_      0,n,0   | n = min(i,j) | op0.skip(n) | op1.skip(n) | type:fill_seq
+X2      ^      0,i,_      _,0,y      _,0,u   | u = min(i,y) | op1 direct for u words    | type:1op_direct
+X3      ^      1,i,_      _,0,y      _,0,u   | u = min(i,y) | op1 invert for u words    | type:1op_invert
+X4      ^      _,0,x      _,0,y      _,0,u   | u = min(x,y) | literal op0 XOR op1       | type:2op_operate
 
 
 noderator hierarchy options
@@ -63,11 +63,11 @@ NOT                   = 1
 OP2 in {OR, AND, XOR} = 3 (where OR and AND can have mirrored implementations)
 OPE = OP2 + NOT       = 4
 
-boperator<OP2> -> boperator<OPE> X boperator<OPE>			3x10 = 30
-boperator<OP2> -> boperator<OPE> x biterator				3x4  = 12 (also covers reversal of operands)
-boperator<OP2> -> biterator      X biterator				3x1  =  3
-boperator<NOT> -> boperator<OPE>							1x4  =  4
-boperator<NOT> -> biterator									1x1  =  1
+boperator<OP2> -> boperator<OPE> X boperator<OPE>     3x10 = 30
+boperator<OP2> -> boperator<OPE> x biterator          3x4  = 12 (also covers reversal of operands)
+boperator<OP2> -> biterator      X biterator          3x1  =  3
+boperator<NOT> -> boperator<OPE>                      1x4  =  4
+boperator<NOT> -> biterator                           1x1  =  1
 biterator
 
 
@@ -84,83 +84,83 @@ slice1 = _0001111  # 4bits
 slice2 = _1110000  # 3bits << 4
 
 input
-	_XXXXXXX _YYYYYYY _..ZZZZZ  # 19 bits
-	_6543210 _6543210 _..43210
+   _XXXXXXX _YYYYYYY _..ZZZZZ  # 19 bits
+   _6543210 _6543210 _..43210
 
 file
-	_DDDDDDD _....DDD
-	^ filled ^current
+   _DDDDDDD _....DDD
+   ^ filled ^current
 
 steps for 2 words (19 / 7)
-		_0001111
-	&	_XXXXXXX
-		_000XXXX << 3
-						_XXXX000
-					|	_....DDD
-						_XXXXDDD
+      _0001111
+   &  _XXXXXXX
+      _000XXXX << 3
+                  _XXXX000
+               |  _....DDD
+                  _XXXXDDD
 file
-	_DDDDDDD _XXXXDDD _.......
-	         _3210...
-	^ filled ^ filled ^current
+   _DDDDDDD _XXXXDDD _.......
+            _3210...
+   ^ filled ^ filled ^current
 
-		_1110000
-	&	_XXXXXXX
-		_XXX0000 >> 4
-						_0000XXX
-					|	_.......
-						_....XXX
+      _1110000
+   &  _XXXXXXX
+      _XXX0000 >> 4
+                  _0000XXX
+               |  _.......
+                  _....XXX
 file
-	_DDDDDDD _XXXXDDD _....XXX
-	         _3210... _....654
-	^ filled ^ filled ^current
+   _DDDDDDD _XXXXDDD _....XXX
+            _3210... _....654
+   ^ filled ^ filled ^current
 
-		_0001111
-	&	_YYYYYYY
-		_000YYYY << 3
-						_YYYY000
-					|	_....XXX
-						_YYYYXXX
+      _0001111
+   &  _YYYYYYY
+      _000YYYY << 3
+                  _YYYY000
+               |  _....XXX
+                  _YYYYXXX
 file
-	_DDDDDDD _XXXXDDD _YYYYXXX _.......
-	         _3210... _3210654
-	^ filled ^ filled ^ filled ^current
+   _DDDDDDD _XXXXDDD _YYYYXXX _.......
+            _3210... _3210654
+   ^ filled ^ filled ^ filled ^current
 
-		_1110000
-	&	_YYYYYYY
-		_YYY0000 >> 4
-						_0000YYY
-					|	_.......
-						_0000YYY
+      _1110000
+   &  _YYYYYYY
+      _YYY0000 >> 4
+                  _0000YYY
+               |  _.......
+                  _0000YYY
 file
-	_DDDDDDD _XXXXDDD _YYYYXXX _....YYY
-	         _3210... _3210654 _....654
-	^ filled ^ filled ^ filled ^current
+   _DDDDDDD _XXXXDDD _YYYYXXX _....YYY
+            _3210... _3210654 _....654
+   ^ filled ^ filled ^ filled ^current
 
 ###############################################################################################
-file	size		regions		regions up tp		region addrs
-0		  8 MiB		  1			   0				0
-1		 16 MiB		  2			   1				1-2
-2		 32 MiB		  4			   3				3-6
-3		 64 MiB		  8			   7				7-14
-4		128 MiB		 16			  15				15-30
-5		256 MiB		 32			  31				31-62
-6		512 MiB		 64			  63
-7		  1 GiB		128			 127
-8...	  1 GiB		128			 255
-....	  1 GiB		128			 383
-....	  1 GiB		128			 511
-....	  1 GiB		128			 639
-....	  1 GiB		128			 767
-....	  1 GiB		128			 895
+file     size  regions  regions  up to    region   addrs
+0       8 MiB        1        0                0
+1      16 MiB        2        1              1-2
+2      32 MiB        4        3              3-6
+3      64 MiB        8        7             7-14
+4     128 MiB       16       15            15-30
+5     256 MiB       32        31           31-62
+6     512 MiB       64        63
+7       1 GiB      128       127
+8...    1 GiB      128       255
+....    1 GiB      128       383
+....    1 GiB      128       511
+....    1 GiB      128       639
+....    1 GiB      128       767
+....    1 GiB      128       895
 
 
 ###############################################################################################
 # data
-sid=>[site1], ts=>[1303933032], tags=>[tag1,tag2],                e=>[21], t=>[3]		# slot start
-sid=>[site1], ts=>[1303933030], tags=>[tag1,tag2,tag3], a=>[ad1], e=>[0] , t=>[3]		# impression
-sid=>[site1], ts=>[1303933033], tags=>[tag1,tag3],      a=>[ad2], e=>[0] , t=>[3]		# impression
-sid=>[site1], ts=>[1303933033], tags=>[tag2,tag3],      a=>[0]  , e=>[0] , t=>[3]		# dummy impression
-sid=>[site1], ts=>[1303933034], tags=>[tag2],                     e=>[13]				# clip start
+sid=>[site1], ts=>[1303933032], tags=>[tag1,tag2],                e=>[21], t=>[3]      # slot start
+sid=>[site1], ts=>[1303933030], tags=>[tag1,tag2,tag3], a=>[ad1], e=>[0] , t=>[3]      # impression
+sid=>[site1], ts=>[1303933033], tags=>[tag1,tag3],      a=>[ad2], e=>[0] , t=>[3]      # impression
+sid=>[site1], ts=>[1303933033], tags=>[tag2,tag3],      a=>[0]  , e=>[0] , t=>[3]      # dummy impression
+sid=>[site1], ts=>[1303933034], tags=>[tag2],                     e=>[13]              # clip start
 
 # rules (no validation)
 scope $sid/v$$week($ts)
@@ -189,22 +189,22 @@ data:
 ###############################################################################################
 # fill-sequence syncronization example
 
-bitmaps:                                          parse tree b0 ^ ( b1 & b2 )
-	00 01 02 03 04 05 06 07 08 09 10 11 12        ^
-b0:	lt lt lt lt 02 -- lt lt 13 -- -- lt lt        `--b0
-b1:	lt 04 -- -- -- lt lt 15 -- -- -- -- 01        `--&
-b2:	04 -- -- -- lt lt 15 -- -- -- -- lt lt           `--b1
-                                                     `--b2
+bitmaps:                                        parse tree b0 ^ ( b1 & b2 )
+      00 01 02 03 04 05 06 07 08 09 10 11 12    ^
+b0:   lt lt lt lt 02 -- lt lt 13 -- -- lt lt    `--b0
+b1:   lt 04 -- -- -- lt lt 15 -- -- -- -- 01    `--&
+b2:   04 -- -- -- lt lt 15 -- -- -- -- lt lt       `--b1
+                                                   `--b2
 iteration state flow and overlaps
-b0:	__ __ __ __ 02 01 __ __ 13 12 11 __ __
-b1:	__ 04 03 02 01 __ __ 15 14 13 12 11 01
-b2:	04 03 02 01 __ __ 15 14 13 12 11 __ __
-ov:	 n  n  n  n  n  n  n  n 13 -- ->  n  n
+b0:   __ __ __ __ 02 01 __ __ 13 12 11 __ __
+b1:   __ 04 03 02 01 __ __ 15 14 13 12 11 01
+b2:   04 03 02 01 __ __ 15 14 13 12 11 __ __
+ov:    n  n  n  n  n  n  n  n 13 -- ->  n  n
 
 partial overlap
-b1:	__ 04 03 02 01 __ __ 15 14 13 12 11 01
-b2:	04 03 02 01 __ __ 15 14 13 12 11 __ __
-ov:	 n 03 -- >|  n  n  n 14 -- -- >|  n  n
+b1:   __ 04 03 02 01 __ __ 15 14 13 12 11 01
+b2:   04 03 02 01 __ __ 15 14 13 12 11 __ __
+ov:    n 03 -- >|  n  n  n 14 -- -- >|  n  n
 
 
 

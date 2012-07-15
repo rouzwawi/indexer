@@ -32,40 +32,40 @@ u4[16] = array of sixteen u4's
 
 === Page type descriptors ===
 ==== fs_hash_table ====
-	u4				0x72786469			# magic word 'idxr'
-	u4				parent_table		# page address of parent table
-	u4[14]			reserved			# empty for future header use
-	u4[8][113]		hash_table			# hash_table entries
-	u4[104]			reserved			# waste
+   u4             0x72786469        # magic word 'idxr'
+   u4             parent_table      # page address of parent table
+   u4[14]         reserved          # empty for future header use
+   u4[8][113]     hash_table        # hash_table entries
+   u4[104]        reserved          # waste
 
-	4*(1 + 1 + 14 + 8*113 + 104) == 4KiB
+   4*(1 + 1 + 14 + 8*113 + 104) == 4KiB
 
-	expl:
-		First page of a data file with file system is always the 0th hash_table page.
-		Hash table pages contain mappings from filenames to page adresses of the first file page.
-		Each table entry contains a sha1 hash, some flags, a page address and a 'next' pointer.
-		The 'next' pointers point to another fs_hash_table page, used for collisions.
-		See 'struct hash_entry' in fs.hpp
+   expl:
+      First page of a data file with file system is always the 0th hash_table page.
+      Hash table pages contain mappings from filenames to page adresses of the first file page.
+      Each table entry contains a sha1 hash, some flags, a page address and a 'next' pointer.
+      The 'next' pointers point to another fs_hash_table page, used for collisions.
+      See 'struct hash_entry' in fs.hpp
 
 ==== scope_page ====
-	u4				0x706f6373			# magic word 'scop'
-	u8				counter
+   u4             0x706f6373        # magic word 'scop'
+   u8             counter
 
 ==== bitmap_data_page ====
-	u4				0x706d7462			# magic word 'btmp'
-	u4				last_fill_page		# pointer to page that contains the last fill word
-	u4				last_page			# last page of bitmap (only on first page of bitmap)
-	u4				next_page			# 
-	u4				written_words		# words written in this page
-	u4				cw_offset			# written bits in current word
-	u4				last_fill_offset	# offset relative to page, for last fill word
-	u4[--]			reserved			# empty for future header use
-	u8[504]			data				# bitmap data in WAH code
+   u4             0x706d7462        # magic word 'btmp'
+   u4             last_fill_page    # pointer to page that contains the last fill word
+   u4             last_page         # last page of bitmap (only on first page of bitmap)
+   u4             next_page         # 
+   u4             written_words     # words written in this page
+   u4             cw_offset         # written bits in current word
+   u4             last_fill_offset  # offset relative to page, for last fill word
+   u4[--]         reserved          # empty for future header use
+   u8[504]        data              # bitmap data in WAH code
 
-	4*(16) + 8*504 == 4KiB
+   4*(16) + 8*504 == 4KiB
 
-	expl:
-		blaoblao
+   expl:
+      blaoblao
 
 
 

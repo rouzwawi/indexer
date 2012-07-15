@@ -17,10 +17,10 @@
 
 typedef struct hash_entry
 {
-	u4 sha1[5];
-	u4 file_page;
-	u4 next_table;
-	u4 flags;
+   u4 sha1[5];
+   u4 file_page;
+   u4 next_table;
+   u4 flags;
 } hash_entry;
 
 
@@ -30,28 +30,28 @@ class fs
 {
 
 private:
-	mmf&        file;
-	hash_entry* hash_table;
-	u4          loaded_table;
+   mmf&        file;
+   hash_entry* hash_table;
+   u4          loaded_table;
 
 public:
-	fs(mmf& file);
-	~fs();
+   fs(mmf& file);
+   ~fs();
 
-	u4 get_file_page(const char* filename);
-	u4 create_file(const char* filename);
-	bool has_file(const char* filename);
+   u4 get_file_page(const char* filename);
+   u4 create_file(const char* filename);
+   bool has_file(const char* filename);
 
-	mmf& get_file() { return file; }
+   mmf& get_file() { return file; }
 
-	static void init(mmf& file);
+   static void init(mmf& file);
 
 private:
-	void load_table(u4 page);
-	int find_table(u4(&sha1)[5], bool allocate);
+   void load_table(u4 page);
+   int find_table(u4(&sha1)[5], bool allocate);
 
-	static int table_index(const u4(&sha1)[5], int jumps) { return sha1[jumps % 5] % FS_TABLE_ENTRIES; }
-	static void init_table(void* page_ptr, u4 parent);
+   static int table_index(const u4(&sha1)[5], int jumps) { return sha1[jumps % 5] % FS_TABLE_ENTRIES; }
+   static void init_table(void* page_ptr, u4 parent);
 };
 
 

@@ -32,42 +32,41 @@ using namespace std;
 class mmf {
 
 private: // fields
-	std::map<int, file_mapping*> files;
-	std::map<u4, mapped_region*> regions;	// region_address -> region
-	const std::string            data_file;
-	const std::string            data_index;
+   std::map<int, file_mapping*> files;
+   std::map<u4, mapped_region*> regions;   // region_address -> region
+   const std::string            data_file;
+   const std::string            data_index;
 
-	mapped_region index_region;
-	u4* next_empty_page;
+   mapped_region index_region;
+   u4* next_empty_page;
 
 public:
-	mmf(const char* data_file);
-	~mmf();
+   mmf(const char* data_file);
+   ~mmf();
 
-	u4 allocated_pages();
-	u4 allocate_page();
-	void* get_page(u4 page);
-	void flush(u4 page);
+   u4 allocated_pages();
+   u4 allocate_page();
+   void* get_page(u4 page);
+   void flush(u4 page);
 
-	static size_t page_size()             { return PAGE_SIZE; }
-	static size_t region_size()           { return PAGES_PER_REGION * page_size(); }
-	static size_t file_size(int file)     { return file_regions(file) * region_size(); }
+   static size_t page_size()              { return PAGE_SIZE; }
+   static size_t region_size()            { return PAGES_PER_REGION * page_size(); }
+   static size_t file_size(int file)      { return file_regions(file) * region_size(); }
 
-	static size_t region_offset(u4 page)  { return page % PAGES_PER_REGION * page_size(); }
-	static u4     file_regions(int file)  { return 1 << min(RAMP_FILES, file); }
-	static u4     regions_up_to(int file) { return file_regions(min(RAMP_FILES, file)) - 1 + max(0,file-RAMP_FILES) * file_regions(RAMP_FILES); }
+   static size_t region_offset(u4 page)   { return page % PAGES_PER_REGION * page_size(); }
+   static u4     file_regions(int file)   { return 1 << min(RAMP_FILES, file); }
+   static u4     regions_up_to(int file)  { return file_regions(min(RAMP_FILES, file)) - 1 + max(0,file-RAMP_FILES) * file_regions(RAMP_FILES); }
 
-	static u4     region_addr(u4 page)    { return page / PAGES_PER_REGION; }
-	static int    file_addr(u4 region)    { for (int f=0;1;f++) if (regions_up_to(f) > region) return f-1; }
-	
+   static u4     region_addr(u4 page)     { return page / PAGES_PER_REGION; }
+   static int    file_addr(u4 region)     { for (int f=0;1;f++) if (regions_up_to(f) > region) return f-1; }
 
 private:
-	bool is_region_mapped(u4 region);
-	void map_region(u4 region);
-	void map_file(int file);
+   bool is_region_mapped(u4 region);
+   void map_region(u4 region);
+   void map_file(int file);
 
-	void read_index();
-	void write_index();
+   void read_index();
+   void write_index();
 
 };
 
