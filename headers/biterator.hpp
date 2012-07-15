@@ -140,7 +140,7 @@ struct zer {};
 template <class v, class f, class l> struct op_case {};
 template <class v0, class f0, class l0, class v1, class f1, class l1> struct op_case_asym {};
 
-/* assymetric cases will test with swapped operator opositions */
+/* assymetric cases will test with swapped operator opositions too */
 
 template <> struct op_case_asym <bol, var, any, any, any, any> { // assymetric
    static inline bool is(bool bool0, noderator* n0, noderator* n1) {

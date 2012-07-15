@@ -81,7 +81,7 @@ void bitmap::append(u8* buffer, int bits)
       lo_len = std::min(remain, (BM_DATA_BITS - cw_offset));
       hi_len = remain - lo_len;
 
-      *current_word |= data << cw_offset;
+      *current_word |= (data & ((U8(1) << lo_len) - 1)) << cw_offset;
       cw_offset += lo_len;
       cw_offset %= BM_DATA_BITS;
 
@@ -91,7 +91,7 @@ void bitmap::append(u8* buffer, int bits)
       }
 
       if (hi_len) { // bits for next word
-         *current_word |= data >> lo_len;
+         *current_word |= (data & (((U8(1) << hi_len) - 1) << lo_len)) >> lo_len;
          cw_offset += hi_len;
       }
    }

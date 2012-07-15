@@ -21,10 +21,10 @@ public:
    static const word_t LTRL_BITS = U8(0x3FFFFFFF80000000);
    static const word_t DATA_BITS = U8(0x7FFFFFFFFFFFFFFF);
 
-   static inline bool isfill (word_t w) { return w & FILL_FLAG; }
+   static inline bool isfill (word_t w) { return  w & FILL_FLAG; }
    static inline bool isfill0(word_t w) { return (w & FILL_FV) == FILL_0; }
    static inline bool isfill1(word_t w) { return (w & FILL_FV) == FILL_1; }
-   static inline bool fillval(word_t w) { return w & FILL_VAL; }
+   static inline bool fillval(word_t w) { return  w & FILL_VAL; }
    static inline u4   fillcnt(word_t w) { return (u4)(w & FILL_BITS); }
    static inline u4   ltrlcnt(word_t w) { return (u4)((w & LTRL_BITS) >> 31); } // (64-2)/2
 

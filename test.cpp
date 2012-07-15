@@ -171,16 +171,16 @@ void test_inverses(fs& fileSystem)
    bitmap bm0(fileSystem.get_file(), page_f0);
    bitmap bm1(fileSystem.get_file(), page_f1);
    u8 bits[] = {U8(0)};
-   int dens = 97;
+   int dens = 997;
 
-//   for (int i=0; i<1024; i++) {
-//      bits[0] = U8(0);
-//      for (int b=0; b<wah::WORD_LENGTH; b++)
-//         if (rand() % 100 < dens) bits[0] |= U8(1) << b;
-//      bm0.append(bits, wah::WORD_LENGTH);
-//      bits[0] = ~bits[0]; // inv
-//      bm1.append(bits, wah::WORD_LENGTH);
-//   }
+   for (int i=0; i<256*1024; i++) {
+      bits[0] = U8(0);
+      for (int b=0; b<wah::WORD_LENGTH; b++)
+         if (rand() % 1000 < dens) bits[0] |= U8(1) << b;
+      bm0.append(bits, wah::WORD_LENGTH);
+      bits[0] = ~bits[0]; // inv
+      bm1.append(bits, wah::WORD_LENGTH);
+   }
 
    biterator it0(fileSystem.get_file(), page_f0);
    biterator it1(fileSystem.get_file(), page_f1);
@@ -243,8 +243,8 @@ int main(int argc, const char* argv[])
          }
          bitmap bm(f, page);
          u8 bits[] = {U8(0x7FFFFFFFFFFFFFFF), U8(0x7FFFFFFFFFFFFFFF), U8(0xAAA), U8(0xCCC), U8(0xFFF)};
-         for (int v=0;v<16;v++)
-            bm.append(bits, 327);
+         for (int v=0;v<1;v++)
+            bm.append(bits, 263);
          continue;
       }
 
