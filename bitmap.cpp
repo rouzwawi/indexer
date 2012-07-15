@@ -13,14 +13,14 @@ bitmap::bitmap(mmf& file, u4 page) : file(file)
    // meta....
    length = first_page.length();
 
-   // load page that contains last fill word and get reference to it
-   load_fill();
-
    // find last page and use as current
    load_page(first_page.last_page());
 
+   // load page that contains last fill word and get reference to it
+   load_fill();
+
    // assert that this is the last page
-   assert(current_page.next_page() == 0);
+   assert(current_page.next_page() == -1);
 }
 
 bitmap::~bitmap()
@@ -148,7 +148,7 @@ inline void bitmap::full_page()
    file.flush(current_page_num);
 
    // initialize the new page and load it
-   init(file, next_page, 0, 0);
+   init(file, next_page, -1, -1);
    load_page(next_page);
 
    // restore word offset
@@ -227,7 +227,7 @@ void bitmap::init(mmf& file, u4 page, u4 last_fill_page, u4 last_page)
    bitmap_page p(ptr);
 
    // write header values
-   p.next_page(0);
+   p.next_page(-1);
    p.written_words(first_page ? 1 : 0);
    p.cw_offset(0);
    p.length(0);

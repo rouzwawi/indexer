@@ -20,8 +20,8 @@ bitmap | bitmap
 1000 trials
 
 @ 9fb78a6
-mean   : 3175 bits/us
-median : 3279 bits/us
+mean   : 3175 bits/us   397 MiB/s
+median : 3279 bits/us   410 MiB/s
 
 
 ###############################################################################################

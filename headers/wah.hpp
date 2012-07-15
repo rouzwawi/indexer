@@ -28,7 +28,7 @@ public:
    static inline u4   fillcnt(word_t w) { return (u4)(w & FILL_BITS); }
    static inline u4   ltrlcnt(word_t w) { return (u4)((w & LTRL_BITS) >> 31); } // (64-2)/2
 
-   static inline bool samefill(word_t fw, word_t lw) { return isfill(fw) && (fw & FILL_VAL) == ((lw << 1) & FILL_VAL); }
+   static inline bool samefill(word_t fw, word_t lw) { return isfill(fw) && (fw & FILL_VAL) == (lw & FILL_VAL); }
 
    static inline bool allones(word_t w) { return (w & DATA_BITS) == DATA_BITS; }
    static inline bool allzero(word_t w) { return (w & DATA_BITS) == 0; }
