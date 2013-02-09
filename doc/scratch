@@ -42,8 +42,9 @@ b0 ^ ( b1 & b2 )
 u8 buffer[buffer_len]
 
 == idea
-two opeands with fill (0/1) and ltrl counts, expressed
-<[01]>,<[ijn_]>,<[xyu_]>
+noderator state expression
+fill value (0/1), fill count, literals count:
+[01],[ijn0_],[xyu0_]
 
 examples
 0,i,x       i fills of 0 then x literals
