@@ -2,10 +2,10 @@
 
 #include "FastDelegate.h"
 
-#include "typedefs.hpp"
-#include "bitmap.hpp"
-#include "op.hpp"
-#include "wah.hpp"
+#include "typedefs.h"
+#include "bitmap.h"
+#include "op.h"
+#include "wah.h"
 
 #ifndef BITERATOR_H
 #define BITERATOR_H

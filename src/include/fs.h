@@ -1,5 +1,5 @@
-#include "typedefs.hpp"
-#include "mmf.hpp"
+#include "typedefs.h"
+#include "mmf.h"
 
 
 #ifndef FS_H

@@ -1,6 +1,6 @@
-#include "headers/fs.hpp"
+#include "fs.h"
 
-#include "headers/sha1.hpp"
+#include "sha1.h"
 
 
 // do noth access fs::hash_table before calls to load_table or find_table

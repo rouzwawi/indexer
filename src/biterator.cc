@@ -1,4 +1,4 @@
-#include "headers/biterator.hpp"
+#include "biterator.h"
 
 #include <algorithm>
 

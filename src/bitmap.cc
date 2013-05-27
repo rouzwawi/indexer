@@ -1,4 +1,4 @@
-#include "headers/bitmap.hpp"
+#include "bitmap.h"
 
 #include <algorithm>
 

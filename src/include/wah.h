@@ -1,4 +1,4 @@
-#include "typedefs.hpp"
+#include "typedefs.h"
 
 
 #ifndef WAH_H

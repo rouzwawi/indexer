@@ -1,6 +1,6 @@
-#include "typedefs.hpp"
-#include "mmf.hpp"
-#include "wah.hpp"
+#include "typedefs.h"
+#include "mmf.h"
+#include "wah.h"
 
 
 #ifndef BITMAP_H

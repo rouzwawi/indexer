@@ -8,15 +8,15 @@
 #include <list>
 #include <iterator>
 
-#include "headers/typedefs.hpp"
+#include "typedefs.h"
 
-#include "headers/sha1.hpp"
-#include "headers/wah.hpp"
+#include "sha1.h"
+#include "wah.h"
 
-#include "headers/fs.hpp"
-#include "headers/mmf.hpp"
-#include "headers/bitmap.hpp"
-#include "headers/biterator.hpp"
+#include "fs.h"
+#include "mmf.h"
+#include "bitmap.h"
+#include "biterator.h"
 
 #define LINES 64
 

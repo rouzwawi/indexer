@@ -1,4 +1,4 @@
-#include "boost_sha1.hpp"
+#include "boost_sha1.h"
 
 
 #ifndef SHA1_H
