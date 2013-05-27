@@ -7,3 +7,5 @@ indexer_SOURCES = \
 	fs.cc \
 	bitmap.cc \
 	biterator.cc
+
+CXXFLAGS = -I./include

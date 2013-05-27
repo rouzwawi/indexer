@@ -93,8 +93,8 @@ int test_itop()
 
 int test_addr_calcs()
 {
-   assert(0x00001000 == mmf::page_size());
-   assert(0x00800000 == mmf::region_size());
+   assert(0x00001000 == MMF_PAGE_SIZE);
+   assert(0x00800000 == MMF_REGION_SIZE);
 
    assert(0x00800000 == mmf::file_size(0));
    assert(0x01000000 == mmf::file_size(1));

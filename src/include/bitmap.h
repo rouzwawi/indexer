@@ -25,8 +25,6 @@
 #define BM_HEAD_LAST_FILL_POS 8
 
 
-using namespace boost::interprocess;
-
 class bitmap_page
 {
 private:
@@ -60,7 +58,7 @@ private:
       header[BM_HEAD_LENGTH_1] = (length >> 32) & 0xFFFFFFFF;
    }
 
-   void*            page;
+   void*             page;
    u4*               header;
    wah::word_t*      data;
 

@@ -10,8 +10,6 @@
 #ifndef BITERATOR_H
 #define BITERATOR_H
 
-
-using namespace boost::interprocess;
 using namespace std;
 
 
