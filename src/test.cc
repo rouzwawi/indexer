@@ -16,6 +16,8 @@
 #include "bitmap.h"
 #include "biterator.h"
 
+#include "config.h"
+
 #define LINES 64
 
 
@@ -205,6 +207,9 @@ void test_inverses(fs& fileSystem)
 int main(int argc, const char* argv[])
 {
    // std::string uuu; cin >> uuu;
+
+   cout << PACKAGE << " (" << PACKAGE_BUGREPORT << ")" << endl;
+   cout << endl;
 
    n<X, A, D> n_XAD;
    n<A, O, X> n_AOX;
