@@ -1,5 +1,3 @@
-#include <boost/interprocess/file_mapping.hpp>
-#include <boost/interprocess/mapped_region.hpp>
 #include <boost/lexical_cast.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -22,7 +20,6 @@
 
 
 using namespace std;
-using namespace boost::interprocess;
 using boost::lexical_cast;
 
 namespace test {
@@ -357,7 +354,7 @@ int main(int argc, const char* argv[])
             u4 file_page = fileSystem.get_file_page(y.c_str());
             int* ptr = (int*) f.get_page(file_page);
             int* p;
-            for (int x=0;x<PAGE_SIZE/sizeof(int);x++) {
+            for (int x=0;x<MMF_PAGE_SIZE/sizeof(int);x++) {
                p = ptr + x;
                for (int y=0;y<(1<<20)-1;y++) {
                   (*p)++;
