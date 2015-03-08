@@ -8,6 +8,9 @@
 
 *~
 
+src/indexer
+mmap-test
+
 test-data*
 data
 
