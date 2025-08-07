@@ -1,5 +1,41 @@
+# C++ build artifacts (legacy)
 *.o
-*.dep
+*.so
+*.a
+test
+
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Benchmark results
+/benches/target/
+
+# Generated documentation
+/doc/
+
+# Data files (for testing)
+/data/
 *.bin
-*.out
-test-data*
+*.dat
