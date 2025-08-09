@@ -53,7 +53,7 @@ u4[16] = array of sixteen u4's
 
 ==== bitmap_data_page ====
    u4             0x706d7462        # magic word 'btmp'
-   u4             next_page         # 
+   u4             next_page         #
    u4             written_words     # words written in this page
    u4             cw_offset         # written bits in current word
    u8             length            # length of bitmap in bits

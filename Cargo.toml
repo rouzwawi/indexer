@@ -1,0 +1,33 @@
+[package]
+name = "bitmap-indexer"
+version = "0.1.0"
+edition = "2021"
+description = "WAH (Word-Aligned Hybrid) compressed bitmap indexing system"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rouz/indexer"
+
+[dependencies]
+memmap2 = "0.9"           # Memory-mapped files (replaces boost::interprocess)
+sha1 = "0.10"             # SHA1 hashing (replaces boost + custom)
+hex = "0.4"               # Hex encoding/decoding
+byteorder = "1.5"         # Byte order handling
+thiserror = "1.0"         # Error handling
+anyhow = "1.0"            # Error context
+serde = { version = "1.0", features = ["derive"] }  # Serialization
+serde_json = "1.0"        # JSON serialization
+
+[dev-dependencies]
+criterion = "0.5"         # Benchmarking
+tempfile = "3.8"          # Temporary files for testing
+
+[[bench]]
+name = "bitmap_bench"
+harness = false
+
+[lib]
+name = "bitmap_indexer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bitmap-indexer"
+path = "src/bin/main.rs"

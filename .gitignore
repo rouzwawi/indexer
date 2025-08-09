@@ -1,5 +1,6 @@
-*.o
-*.dep
-*.bin
-*.out
-test-data*
+.vscode
+data
+
+# Added by cargo
+
+/target

@@ -6,7 +6,7 @@ This project is a **WAH (Word-Aligned Hybrid) compressed bitmap indexing system*
 
 - Memory-mapped file management with automatic region allocation
 - Hash-based file system for organizing indexed data
-- WAH compression for space-efficient bitmap storage  
+- WAH compression for space-efficient bitmap storage
 - Bitmap operations (append, fill, iteration)
 - SHA1-based file identification
 
@@ -16,11 +16,11 @@ This project is a **WAH (Word-Aligned Hybrid) compressed bitmap indexing system*
 
 1. **Memory Management (`mmf.hpp/cpp`)**
    - Memory-mapped file handling with boost::interprocess
-   - Automatic file expansion with exponential growth (8MB → 16MB → 32MB...)
-   - Page-based allocation (4KB pages)
+   - Automatic file expansion with exponential growth (8 MiB → 16 MiB → 32 MiB...)
+   - Page-based allocation (4 KiB pages)
    - Region mapping for efficient memory usage
 
-2. **File System Layer (`fs.hpp/cpp`)**  
+2. **File System Layer (`fs.hpp/cpp`)**
    - SHA1-based hash tables for file organization
    - Collision handling with linked hash table pages
    - File creation and lookup operations
@@ -33,7 +33,7 @@ This project is a **WAH (Word-Aligned Hybrid) compressed bitmap indexing system*
 
 4. **Bitmap Operations (`bitmap.hpp/cpp`)**
    - Append operations with word splitting
-   - Fill operations for efficient run encoding  
+   - Fill operations for efficient run encoding
    - Page management for large bitmaps
    - Header management for metadata
 
@@ -63,12 +63,12 @@ bitmap-indexer-rs/
 │   ├── lib.rs
 │   ├── types.rs          # typedefs.hpp equivalent
 │   ├── wah/
-│   │   ├── mod.rs        # wah.hpp equivalent  
+│   │   ├── mod.rs        # wah.hpp equivalent
 │   │   └── compression.rs
 │   ├── storage/
 │   │   ├── mod.rs
 │   │   ├── mmf.rs        # mmf.hpp/cpp equivalent
-│   │   └── filesystem.rs # fs.hpp/cpp equivalent  
+│   │   └── filesystem.rs # fs.hpp/cpp equivalent
 │   ├── bitmap/
 │   │   ├── mod.rs
 │   │   ├── bitmap.rs     # bitmap.hpp/cpp equivalent
@@ -114,7 +114,7 @@ impl WahWord {
     const FILL_FLAG: u64 = 0x8000_0000_0000_0000;
     const FILL_VAL: u64 = 0x4000_0000_0000_0000;
     // ... other constants
-    
+
     pub fn is_fill(&self) -> bool { /* ... */ }
     pub fn fill_value(&self) -> bool { /* ... */ }
     pub fn fill_count(&self) -> u32 { /* ... */ }
@@ -224,7 +224,7 @@ impl Iterator for BitmapReader {
 
 #### 5.2 Documentation
 - Comprehensive rustdoc documentation
-- Code examples for common use cases  
+- Code examples for common use cases
 - Migration guide from C++ version
 - Performance comparison documentation
 
@@ -247,7 +247,7 @@ impl Iterator for BitmapReader {
 - **Thread Safety**: Rust's ownership system prevents data races
 - **Type Safety**: Strong type system catches errors at compile time
 
-### Performance Benefits  
+### Performance Benefits
 - **Zero-cost abstractions**: High-level code without runtime overhead
 - **Better optimization**: LLVM backend with modern optimization passes
 - **Memory efficiency**: No garbage collector, predictable memory usage
@@ -268,7 +268,7 @@ impl Iterator for BitmapReader {
 - **Mitigation**: Extensive benchmarking throughout migration
 - **Fallback**: Keep C++ version available during transition
 
-### Compatibility Risks  
+### Compatibility Risks
 - **Mitigation**: Thorough testing with existing data files
 - **Fallback**: Provide migration tools and format conversion utilities
 
@@ -279,7 +279,7 @@ impl Iterator for BitmapReader {
 ## Estimated Timeline
 
 - **Phase 1 (Setup)**: 1-2 weeks
-- **Phase 2 (Core Migration)**: 4-6 weeks  
+- **Phase 2 (Core Migration)**: 4-6 weeks
 - **Phase 3 (Optimizations)**: 2-3 weeks
 - **Phase 4 (Testing)**: 2-3 weeks
 - **Phase 5 (Documentation)**: 1-2 weeks
@@ -290,7 +290,7 @@ impl Iterator for BitmapReader {
 ## Next Steps
 
 1. **Review and approve this migration plan**
-2. **Set up Rust development environment** 
+2. **Set up Rust development environment**
 3. **Create initial Rust project structure**
 4. **Begin Phase 1: Project setup and foundation**
 5. **Establish benchmarking baseline with C++ version**
