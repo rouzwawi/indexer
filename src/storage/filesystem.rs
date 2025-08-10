@@ -3,9 +3,9 @@
 //! This module provides a file system abstraction using SHA1-based hashing
 //! for efficient file organization and retrieval.
 
-use crate::types::{Result, Error, fs::*};
 use crate::hash::sha1::Sha1Hash;
 use crate::storage::MemoryMappedFile;
+use crate::types::{fs::*, Error, Result};
 use std::ops::{Index, IndexMut};
 
 /// Hash entry stored in hash table pages (32 bytes total)
@@ -73,10 +73,7 @@ pub struct HashTableMut<'a> {
 impl<'a> HashTableRef<'a> {
     /// Create a new hash table
     pub fn new(page: u32, data: &'a [HashEntry]) -> Self {
-        Self {
-            page,
-            data,
-        }
+        Self { page, data }
     }
 
     /// Get the length of the hash table
@@ -88,10 +85,7 @@ impl<'a> HashTableRef<'a> {
 impl<'a> HashTableMut<'a> {
     /// Create a new hash table
     pub fn new(page: u32, data: &'a mut [HashEntry]) -> Self {
-        Self {
-            page,
-            data,
-        }
+        Self { page, data }
     }
 
     /// Get the length of the hash table
@@ -126,6 +120,12 @@ impl<'a> IndexMut<usize> for HashTableMut<'a> {
 pub struct FileSystem {
     /// Memory-mapped file for storage
     storage: MemoryMappedFile,
+
+    /// Max collision level
+    pub max_collision_level: u32,
+
+    /// Allocated tables
+    pub allocated_tables: u32,
 }
 
 impl FileSystem {
@@ -138,7 +138,11 @@ impl FileSystem {
             return Err(Error::InvalidFormat("File not initialized".to_string()));
         }
 
-        Ok(Self { storage })
+        Ok(Self {
+            storage,
+            max_collision_level: 0,
+            allocated_tables: 1,
+        })
     }
 
     /// Initialize a new file system
@@ -221,6 +225,11 @@ impl FileSystem {
         self.storage.sync_page(page_num)
     }
 
+    /// Get the memory-mapped file
+    pub fn mmf(&mut self) -> &mut MemoryMappedFile {
+        &mut self.storage
+    }
+
     /// Get hash table as a slice from a page
     fn get_hash_table(&mut self, page: u32) -> Result<HashTableRef> {
         let page_data = self.storage.get_page(page)?;
@@ -230,7 +239,9 @@ impl FileSystem {
 
         // Ensure we have enough data for the hash table
         if table_data.len() < TABLE_ENTRIES * HASH_ENTRY_SIZE {
-            return Err(Error::InvalidFormat("Page too small for hash table".to_string()));
+            return Err(Error::InvalidFormat(
+                "Page too small for hash table".to_string(),
+            ));
         }
 
         // SAFETY: We've verified the slice is large enough and HashEntry has repr(C)
@@ -251,7 +262,9 @@ impl FileSystem {
 
         // Ensure we have enough data for the hash table
         if table_data.len() < TABLE_ENTRIES * HASH_ENTRY_SIZE {
-            return Err(Error::InvalidFormat("Page too small for hash table".to_string()));
+            return Err(Error::InvalidFormat(
+                "Page too small for hash table".to_string(),
+            ));
         }
 
         // SAFETY: We've verified the slice is large enough and HashEntry has repr(C)
@@ -269,8 +282,10 @@ impl FileSystem {
         let mut jumps = 0;
 
         loop {
-            let h1 = Self::table_hash_h1(sha1);
-            let h2 = Self::table_hash_h2(sha1);
+            // Re-hash based on jump count to vary probing patterns across chain levels
+            let h1 = Self::table_hash_h1(sha1, jumps);
+            let h2 = Self::table_hash_h2(sha1, jumps);
+
             let hash_table = self.get_hash_table(current_page)?;
 
             // Probe multiple slots within this page first
@@ -301,6 +316,7 @@ impl FileSystem {
                 let new_page_ptr = self.storage.get_page_mut(next_table_page)?;
                 Self::init_table(new_page_ptr, current_page)?;
                 self.storage.sync_page(next_table_page)?;
+                self.allocated_tables += 1;
 
                 // Now publish the link from the current page and persist it
                 {
@@ -315,8 +331,9 @@ impl FileSystem {
             }
 
             jumps += 1;
+            self.max_collision_level = jumps.max(self.max_collision_level);
             if jumps >= MAX_COLLISION_ATTEMPTS {
-                return Err(Error::HashCollision);
+                return Err(Error::HashCollision(MAX_COLLISION_ATTEMPTS));
             }
         }
     }
@@ -339,7 +356,8 @@ impl FileSystem {
 
         // Clear hash table area
         if TABLE_OFFSET + TABLE_ENTRIES * HASH_ENTRY_SIZE <= page_ptr.len() {
-            let table_area = &mut page_ptr[TABLE_OFFSET..TABLE_OFFSET + TABLE_ENTRIES * HASH_ENTRY_SIZE];
+            let table_area =
+                &mut page_ptr[TABLE_OFFSET..TABLE_OFFSET + TABLE_ENTRIES * HASH_ENTRY_SIZE];
             table_area.fill(0);
         }
 
@@ -349,23 +367,34 @@ impl FileSystem {
     /// Verify that a page is initialized
     fn verify_page_initialized(page_data: &[u8]) -> Result<()> {
         if page_data.len() < 4 {
-            return Err(Error::InvalidFormat("Page too small for hash table".to_string()));
+            return Err(Error::InvalidFormat(
+                "Page too small for hash table".to_string(),
+            ));
         }
-        let magic_word = u32::from_le_bytes([page_data[0], page_data[1], page_data[2], page_data[3]]);
+        let magic_word =
+            u32::from_le_bytes([page_data[0], page_data[1], page_data[2], page_data[3]]);
         if magic_word != MAGIC_WORD {
             return Err(Error::InvalidFormat("Page not initialized".to_string()));
         }
         Ok(())
     }
 
-    /// Primary mixed hash (h1) for double hashing within a page
+    /// Primary hash with salt based on chain depth to vary probing patterns
     #[inline]
-    fn table_hash_h1(sha1: &[u32; 5]) -> u32 {
-        let mut h = sha1[0]
-            ^ sha1[1].rotate_left(5)
-            ^ sha1[2].rotate_left(11)
-            ^ sha1[3].rotate_left(17)
-            ^ sha1[4].rotate_left(23);
+    fn table_hash_h1(sha1: &[u32; 5], salt: u32) -> u32 {
+        // Mix salt into the hash computation to get different patterns per chain level
+        let salt_u32 = salt as u32;
+        let mut h = sha1[0].wrapping_add(salt_u32.wrapping_mul(0xCC9E_2D51))
+            ^ sha1[1].rotate_left(5).wrapping_add(salt_u32.rotate_left(7))
+            ^ sha1[2]
+                .rotate_left(11)
+                .wrapping_add(salt_u32.wrapping_mul(0x1B87_3593))
+            ^ sha1[3]
+                .rotate_left(17)
+                .wrapping_add(salt_u32.rotate_left(13))
+            ^ sha1[4]
+                .rotate_left(23)
+                .wrapping_add(salt_u32.wrapping_mul(0xE674_4D61));
         h ^= h >> 16;
         h = h.wrapping_mul(0x7FEB_352D);
         h ^= h >> 15;
@@ -374,14 +403,22 @@ impl FileSystem {
         h
     }
 
-    /// Secondary hash (h2) for double hashing; ensure odd to walk table
+    /// Secondary hash with salt based on chain depth; ensure odd to walk table
     #[inline]
-    fn table_hash_h2(sha1: &[u32; 5]) -> u32 {
-        let mut h = sha1[0].wrapping_mul(0x9E37_79B9)
-            ^ sha1[2].rotate_left(9)
-            ^ sha1[4].wrapping_mul(0x85EB_CA6B);
+    fn table_hash_h2(sha1: &[u32; 5], salt: u32) -> u32 {
+        // Mix salt into the secondary hash as well
+        let salt_u32 = salt as u32;
+        let mut h = sha1[0]
+            .wrapping_mul(0x9E37_79B9)
+            .wrapping_add(salt_u32.wrapping_mul(0xA2F1_B6F5))
+            ^ sha1[2]
+                .rotate_left(9)
+                .wrapping_add(salt_u32.rotate_left(11))
+            ^ sha1[4]
+                .wrapping_mul(0x85EB_CA6B)
+                .wrapping_add(salt_u32.wrapping_mul(0xD6E8_A1C3));
         h ^= h >> 16;
-        h |= 1;
+        h |= 1; // Ensure odd for proper double hashing
         h
     }
 }
@@ -389,8 +426,8 @@ impl FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::mem;
+    use tempfile::TempDir;
 
     #[test]
     fn test_hash_entry_size() {
@@ -466,7 +503,11 @@ mod tests {
         // Verify all files can be found
         for (filename, expected_page) in file_pages {
             let found_page = fs.get_file_page(&filename).unwrap();
-            assert_eq!(found_page, expected_page, "File {} not found correctly", filename);
+            assert_eq!(
+                found_page, expected_page,
+                "File {} not found correctly",
+                filename
+            );
         }
     }
 
@@ -525,8 +566,8 @@ mod tests {
         // Get the hash table and verify entry
         let sha1_hash = Sha1Hash::from_string(filename);
         let sha1 = sha1_hash.as_words();
-        let h1 = FileSystem::table_hash_h1(sha1);
-        let h2 = FileSystem::table_hash_h2(sha1);
+        let h1 = FileSystem::table_hash_h1(sha1, 0);
+        let h2 = FileSystem::table_hash_h2(sha1, 0);
         let index = ((h1.wrapping_add(h2.wrapping_mul(0))) as usize) % TABLE_ENTRIES;
 
         let hash_table = fs.get_hash_table(0).unwrap();
@@ -587,5 +628,58 @@ mod tests {
         // Verify we can get mutable access
         let hash_table_mut = fs.get_hash_table_mut(0).unwrap();
         assert_eq!(hash_table_mut.len(), TABLE_ENTRIES);
+    }
+
+    #[test]
+    fn test_large_scale_collision_resolution() {
+        let temp_dir = TempDir::new().unwrap();
+        let mmf_path = temp_dir.path().join("large_test.mmf");
+
+        let storage = MemoryMappedFile::new(&mmf_path).unwrap();
+        let mut fs = FileSystem::init(storage).unwrap();
+
+        // Create a significant number of files to stress test collision resolution
+        let file_count = 10000; // Reduced from 1M for reasonable test time
+        let mut file_names = Vec::new();
+
+        println!(
+            "Creating {} files to test collision resolution...",
+            file_count
+        );
+
+        for i in 0..file_count {
+            let filename = format!("collision_test_file_{:06}.bitmap", i);
+            match fs.create_file(&filename) {
+                Ok(_) => {
+                    file_names.push(filename);
+                }
+                Err(e) => {
+                    panic!("Failed to create file {}: {}", filename, e);
+                }
+            }
+
+            // Progress indicator
+            if i > 0 && i % 1000 == 0 {
+                println!("Created {} files...", i);
+            }
+        }
+
+        println!("Verifying all {} files can be found...", file_count);
+
+        // Verify all files can be found
+        for (index, filename) in file_names.iter().enumerate() {
+            let page = fs.get_file_page(filename).unwrap();
+            assert!(page > 0, "File {} not found", filename);
+
+            // Progress indicator
+            if index > 0 && index % 1000 == 0 {
+                println!("Verified {} files...", index);
+            }
+        }
+
+        println!(
+            "Successfully created and verified {} files with improved collision resolution!",
+            file_count
+        );
     }
 }

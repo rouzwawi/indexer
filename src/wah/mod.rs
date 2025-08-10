@@ -6,7 +6,7 @@
 
 pub mod compression;
 
-pub use compression::{WahWord, WahEncoder, WahDecoder};
+pub use compression::{WahDecoder, WahEncoder, WahWord};
 
 use crate::types::Result;
 

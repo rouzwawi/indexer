@@ -2,8 +2,8 @@
 //!
 //! This tool provides Unix-like cat and tee functionality using the memory-mapped filesystem.
 
-use bitmap_indexer::storage::FileSystem;
 use bitmap_indexer::storage::mmf::MemoryMappedFile;
+use bitmap_indexer::storage::FileSystem;
 use std::env;
 use std::io::{self, BufRead, BufReader};
 
@@ -15,6 +15,7 @@ fn main() -> anyhow::Result<()> {
         println!("Commands:");
         println!("  cat <filename>     - Read file and print to stdout");
         println!("  tee <filename>     - Read stdin, write to file and stdout");
+        println!("  fill <num_files>   - Fill files with sequential numbers");
         return Ok(());
     }
 
@@ -36,7 +37,7 @@ fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
             cat_command(&mut fs, &args[3])?;
-        },
+        }
         "tee" => {
             if args.len() < 4 {
                 println!("Usage: {} {} tee <filename>", args[0], args[1]);
@@ -44,7 +45,15 @@ fn main() -> anyhow::Result<()> {
             }
             let overwrite = args.len() > 4 && (args[4] == "--overwrite" || args[4] == "-o");
             tee_command(&mut fs, &args[3], overwrite)?;
-        },
+        }
+        "fill" => {
+            if args.len() != 4 {
+                println!("Usage: {} {} fill <num_files>", args[0], args[1]);
+                return Ok(());
+            }
+            fill_command(&mut fs, args[3].parse::<u32>()?)?;
+            println!("Fill done");
+        }
         _ => {
             println!("Unknown command: {}", command);
             println!("Available commands: cat, tee");
@@ -65,7 +74,10 @@ fn cat_command(fs: &mut FileSystem, filename: &str) -> anyhow::Result<()> {
     let page_data = fs.get_page_data(file_page)?;
 
     // Find the end of the content (look for null terminator or use full page)
-    let content_end = page_data.iter().position(|&b| b == 0).unwrap_or(page_data.len());
+    let content_end = page_data
+        .iter()
+        .position(|&b| b == 0)
+        .unwrap_or(page_data.len());
     let content = &page_data[..content_end];
 
     // Convert to string and print
@@ -119,5 +131,18 @@ fn tee_command(fs: &mut FileSystem, filename: &str, overwrite: bool) -> anyhow::
     // Sync the page to ensure it's written
     fs.sync_page(file_page)?;
 
+    Ok(())
+}
+
+fn fill_command(fs: &mut FileSystem, files: u32) -> anyhow::Result<()> {
+    for i in 0..files {
+        let filename = format!("fillfile_{}", i);
+        let file_page = fs.create_file(&filename)?;
+        let page_data = fs.get_page_data_mut(file_page)?;
+        page_data.fill(i as u8);
+    }
+    println!("Max collision level: {}", fs.max_collision_level);
+    println!("Allocated tables: {}", fs.allocated_tables);
+    fs.mmf().sync_all()?;
     Ok(())
 }

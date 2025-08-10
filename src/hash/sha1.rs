@@ -1,7 +1,7 @@
 //! SHA1 hash implementation for file identification.
 
-use sha1::{Sha1, Digest};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 use std::fmt;
 
 /// SHA1 hash wrapper for file identification

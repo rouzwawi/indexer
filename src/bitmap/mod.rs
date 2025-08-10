@@ -6,4 +6,4 @@
 pub mod bitmap;
 pub mod iterator;
 
-pub use bitmap::{BitmapIndex, BitmapWriter, BitmapReader};
+pub use bitmap::{BitmapIndex, BitmapReader, BitmapWriter};

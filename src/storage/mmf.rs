@@ -140,10 +140,23 @@ use crate::types::{Error, Result, PAGES_PER_REGION, PAGE_SIZE, REGION_SIZE};
 use memmap2::{MmapMut, MmapOptions};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU32, Ordering};
+
+/// File mapping structure that holds a complete file mapping
+struct FileMapping {
+    /// The actual memory mapping covering the entire file
+    mapping: MmapMut,
+    /// File handle (kept alive for the mapping)
+    _file: File,
+    /// Size of this file in bytes
+    #[allow(dead_code)]
+    file_size: u64,
+    /// Number of regions in this file
+    region_count: u32,
+}
 
 /// Memory-mapped file manager with automatic expansion
 ///
@@ -152,10 +165,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub struct MemoryMappedFile {
     /// Base path for the memory-mapped files
     base_path: PathBuf,
-    /// Active files indexed by file number
-    files: HashMap<u32, File>,
-    /// Active memory mappings indexed by region ID
-    region_mappings: HashMap<u32, MmapMut>,
     /// Index file memory mapping for persistent metadata
     /// The first 4 bytes contain the next available page number
     /// MUST be declared before next_page_ptr to ensure proper drop order
@@ -167,6 +176,8 @@ pub struct MemoryMappedFile {
     /// because index_mapping is owned by this struct and declared before this field.
     /// Rust's drop order guarantees the mapping stays valid.
     next_page_ptr: *mut AtomicU32,
+    /// Whole-file mappings indexed by file number
+    file_mappings: HashMap<u32, FileMapping>,
 
     /// Marker to make this type !Send and !Sync (single-threaded by design)
     _not_send_or_sync: PhantomData<Rc<()>>,
@@ -193,10 +204,9 @@ impl MemoryMappedFile {
 
         Ok(Self {
             base_path,
-            files: HashMap::new(),
-            region_mappings: HashMap::new(),
             index_mapping,
             next_page_ptr,
+            file_mappings: HashMap::new(),
             _not_send_or_sync: PhantomData,
         })
     }
@@ -211,7 +221,8 @@ impl MemoryMappedFile {
 
         // Ensure we have a mapping for this page
         let region_id = region_for_page(current_page);
-        self.ensure_region_mapping(region_id)?;
+        let file_num = file_addr(region_id);
+        self.ensure_file_mapping(file_num)?;
 
         Ok(current_page)
     }
@@ -222,19 +233,28 @@ impl MemoryMappedFile {
         if page_num >= self.allocated_pages() {
             return Err(Error::InvalidPage(page_num));
         }
+
+        // Calculate which file contains this page
         let region_id = region_for_page(page_num);
-        let mapping = self.ensure_region_mapping(region_id)?;
+        let file_num = file_addr(region_id);
 
-        let page_offset = page_offset_in_region(page_num);
-        let start = page_offset as usize * PAGE_SIZE;
-        let end = start + PAGE_SIZE;
+        // Ensure whole file is mapped
+        let file_mapping = self.ensure_file_mapping(file_num)?;
 
-        if end > mapping.len() {
-            return Err(Error::InvalidPage(page_num));
-        }
+        // Calculate offset within the entire file
+        let regions_before_file = regions_up_to(file_num);
+        let region_offset_in_file = region_id - regions_before_file;
+        let page_offset_in_region = page_offset_in_region(page_num);
 
-        // Use safe slice operations instead of unsafe pointer arithmetic
-        mapping.get_mut(start..end)
+        let byte_offset = (region_offset_in_file * PAGES_PER_REGION as u32 + page_offset_in_region)
+            as usize
+            * PAGE_SIZE;
+        let end_offset = byte_offset + PAGE_SIZE;
+
+        // Return slice directly from file mapping
+        file_mapping
+            .mapping
+            .get_mut(byte_offset..end_offset)
             .ok_or_else(|| Error::InvalidPage(page_num))
     }
 
@@ -245,71 +265,71 @@ impl MemoryMappedFile {
             return Err(Error::InvalidPage(page_num));
         }
 
+        // Calculate which file contains this page
         let region_id = region_for_page(page_num);
-        let mapping = self.ensure_region_mapping(region_id)?;
+        let file_num = file_addr(region_id);
 
-        let page_offset = page_offset_in_region(page_num);
-        let start = page_offset as usize * PAGE_SIZE;
-        let end = start + PAGE_SIZE;
+        // Ensure whole file is mapped
+        let file_mapping = self.ensure_file_mapping(file_num)?;
 
-        if end > mapping.len() {
-            return Err(Error::InvalidPage(page_num));
-        }
+        // Calculate offset within the entire file
+        let regions_before_file = regions_up_to(file_num);
+        let region_offset_in_file = region_id - regions_before_file;
+        let page_offset_in_region = page_offset_in_region(page_num);
 
-        // Use safe slice operations for read-only access
-        mapping.get(start..end)
+        let byte_offset = (region_offset_in_file * PAGES_PER_REGION as u32 + page_offset_in_region)
+            as usize
+            * PAGE_SIZE;
+        let end_offset = byte_offset + PAGE_SIZE;
+
+        // Return slice directly from file mapping
+        file_mapping
+            .mapping
+            .get(byte_offset..end_offset)
             .ok_or_else(|| Error::InvalidPage(page_num))
     }
 
-    /// Ensure a region exists, creating its containing file if necessary
-    fn ensure_region_mapping(&mut self, region_id: u32) -> Result<&mut MmapMut> {
-        if self.region_mappings.contains_key(&region_id) {
-            return Ok(self.region_mappings.get_mut(&region_id).unwrap());
-        }
-
-        // Determine which file contains this region
-        let file_num = file_addr(region_id);
-
-        // Ensure file exists
-        let file = self.ensure_file_exists(file_num)?;
-
-        // Calculate the offset of this region within the file
-        let regions_before_file = regions_up_to(file_num);
-        let region_offset_in_file = region_id - regions_before_file;
-        let byte_offset = region_offset_in_file as u64 * REGION_SIZE as u64;
-
-        // Create memory mapping for just this region within the file
-        let mmap = unsafe {
-            MmapOptions::new()
-                .offset(byte_offset)
-                .len(REGION_SIZE as usize)
-                .map_mut(file)
-                .map_err(|e| Error::MemoryMapping(format!("Failed to create mapping for region {} in file {}: {}", region_id, file_num, e)))?
-        };
-
-        self.region_mappings.insert(region_id, mmap);
-
-        Ok(self.region_mappings.get_mut(&region_id).unwrap())
-    }
-
-    /// Ensure a file exists, creating it if necessary
-    fn ensure_file_exists(&mut self, file_num: u32) -> Result<&File> {
-        if !self.files.contains_key(&file_num) {
+    /// Ensure a file is mapped, creating it if necessary
+    fn ensure_file_mapping(&mut self, file_num: u32) -> Result<&mut FileMapping> {
+        if !self.file_mappings.contains_key(&file_num) {
             let file_path = self.base_path.with_extension(format!("d{:04x}", file_num));
-            let new_file = !file_path.exists();
+            let file_size_bytes = file_size(file_num);
+
+            // Create/ensure file exists with correct size
             let file = OpenOptions::new()
                 .create(true)
                 .read(true)
                 .write(true)
                 .open(&file_path)?;
 
-            if new_file {
-                file.set_len(file_size(file_num))?;
+            if file.metadata()?.len() < file_size_bytes {
+                file.set_len(file_size_bytes)?;
             }
-            self.files.insert(file_num, file);
+
+            // Map entire file at once
+            let mapping = unsafe {
+                MmapOptions::new()
+                    .len(file_size_bytes as usize)
+                    .map_mut(&file)
+                    .map_err(|e| {
+                        Error::MemoryMapping(format!(
+                            "Failed to create mapping for file {}: {}",
+                            file_num, e
+                        ))
+                    })?
+            };
+
+            let file_mapping = FileMapping {
+                mapping,
+                _file: file,
+                file_size: file_size_bytes,
+                region_count: file_regions(file_num),
+            };
+
+            self.file_mappings.insert(file_num, file_mapping);
         }
 
-        Ok(self.files.get(&file_num).unwrap())
+        Ok(self.file_mappings.get_mut(&file_num).unwrap())
     }
 
     /// Get the total number of allocated pages
@@ -324,7 +344,9 @@ impl MemoryMappedFile {
         // Prevent overflow
         let current = self.allocated_pages();
         if current == u32::MAX {
-            return Err(Error::InsufficientSpace("Maximum number of pages reached".to_string()));
+            return Err(Error::InsufficientSpace(
+                "Maximum number of pages reached".to_string(),
+            ));
         }
 
         let prev = self.get_next_page_atomic().fetch_add(1, Ordering::Relaxed);
@@ -350,13 +372,15 @@ impl MemoryMappedFile {
         if page_num >= self.allocated_pages() {
             return Err(Error::InvalidPage(page_num));
         }
-        let region_id = region_for_page(page_num);
 
-        // If the region is mapped, flush it to disk
-        if self.region_mappings.contains_key(&region_id) {
-            self.region_mappings.get_mut(&region_id).unwrap()
-                .flush()
-                .map_err(|e| Error::MemoryMapping(format!("Failed to sync page {}: {}", page_num, e)))?;
+        let region_id = region_for_page(page_num);
+        let file_num = file_addr(region_id);
+
+        // // If the file is mapped, flush it to disk
+        if let Some(file_mapping) = self.file_mappings.get_mut(&file_num) {
+            file_mapping.mapping.flush().map_err(|e| {
+                Error::MemoryMapping(format!("Failed to sync page {}: {}", page_num, e))
+            })?;
         }
 
         Ok(())
@@ -364,8 +388,10 @@ impl MemoryMappedFile {
 
     /// Sync all mappings to disk
     pub fn sync_all(&self) -> Result<()> {
-        for mapping in self.region_mappings.values() {
-            mapping.flush()
+        for file_mapping in self.file_mappings.values() {
+            file_mapping
+                .mapping
+                .flush()
                 .map_err(|e| Error::MemoryMapping(format!("Failed to sync: {}", e)))?;
         }
 
@@ -379,19 +405,29 @@ impl MemoryMappedFile {
     /// This is automatically called on page allocation, but can be called
     /// manually for explicit persistence.
     pub fn sync_index(&self) -> Result<()> {
-        self.index_mapping.flush()
+        self.index_mapping
+            .flush()
             .map_err(|e| Error::MemoryMapping(format!("Failed to flush index: {}", e)))?;
         Ok(())
     }
 
     /// Get statistics about memory usage
     pub fn stats(&self) -> MemoryStats {
-        let total_mapped = self.region_mappings.values()
-            .map(|m| m.len())
+        let total_mapped = self
+            .file_mappings
+            .values()
+            .map(|fm| fm.mapping.len())
+            .sum::<usize>();
+
+        // Calculate active regions from active files
+        let active_regions = self
+            .file_mappings
+            .values()
+            .map(|fm| fm.region_count as usize)
             .sum::<usize>();
 
         MemoryStats {
-            active_regions: self.region_mappings.len(),
+            active_regions,
             allocated_pages: self.allocated_pages(),
             total_mapped_bytes: total_mapped,
             current_region_size: REGION_SIZE,
@@ -460,9 +496,9 @@ pub fn file_size(file: u32) -> u64 {
 /// - Files 7+: 128 regions each
 pub fn file_regions(file: u32) -> u32 {
     if file >= 7 {
-        128  // Fixed size for files 7 and above
+        128 // Fixed size for files 7 and above
     } else {
-        1 << file  // Exponential growth: 2^file
+        1 << file // Exponential growth: 2^file
     }
 }
 
@@ -476,7 +512,7 @@ pub fn file_regions(file: u32) -> u32 {
 /// - etc.
 pub fn regions_up_to(file: u32) -> u32 {
     if file == 0 {
-        0  // No regions before file 0
+        0 // No regions before file 0
     } else if file <= 7 {
         // Sum of geometric series: 1 + 2 + 4 + ... + 2^(file-1) = 2^file - 1
         (1 << file) - 1
@@ -513,7 +549,7 @@ pub fn page_offset_in_region(page_num: u32) -> u32 {
 /// Determine which file contains the given region.
 pub fn file_addr(region: u32) -> u32 {
     if region == 0 {
-        return 0;  // Region 0 is always in file 0
+        return 0; // Region 0 is always in file 0
     }
 
     let mut file = 0;
@@ -532,8 +568,6 @@ pub struct MemoryStats {
     pub total_mapped_bytes: usize,
     pub current_region_size: usize,
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -742,7 +776,7 @@ mod tests {
         assert_eq!(region_for_page(2048), 1);
         assert_eq!(region_for_page(4095), 1);
         assert_eq!(region_for_page(4096), 2);
-        assert_eq!(region_for_page(6143 ), 2);
+        assert_eq!(region_for_page(6143), 2);
         assert_eq!(region_for_page(6144), 3);
         assert_eq!(region_for_page(8191), 3);
         assert_eq!(region_for_page(8192), 4);

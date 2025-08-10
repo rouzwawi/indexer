@@ -50,10 +50,10 @@ pub mod fs {
     pub const HE_FILLED: u32 = 0x00000001;
 
     /// Maximum collision resolution attempts
-    pub const MAX_COLLISION_ATTEMPTS: usize = 16;
+    pub const MAX_COLLISION_ATTEMPTS: u32 = 16;
 
     /// Number of in-page probes to attempt before chaining
-    pub const PROBES_PER_PAGE: usize = 8;
+    pub const PROBES_PER_PAGE: u32 = 16;
 
     /// Invalid page marker
     pub const INVALID_PAGE: u32 = 0xFFFF_FFFF;
@@ -64,11 +64,14 @@ pub mod fs {
 
 // ===== Compile-time layout guarantees =====
 // Ensure hash-table data starts at an offset aligned for `HashEntry`
-const _: [(); 1] = [(); (fs::TABLE_OFFSET % core::mem::align_of::<crate::storage::filesystem::HashEntry>() == 0) as usize];
+const _: [(); 1] = [(); (fs::TABLE_OFFSET
+    % core::mem::align_of::<crate::storage::filesystem::HashEntry>()
+    == 0) as usize];
 // Ensure the `HashEntry` layout size matches expectations (32 bytes)
 const _: [(); 1] = [(); (fs::HASH_ENTRY_SIZE == 32) as usize];
 // Ensure the table fits within a single page
-const _: [(); 1] = [(); (fs::TABLE_OFFSET + fs::TABLE_ENTRIES * fs::HASH_ENTRY_SIZE <= PAGE_SIZE) as usize];
+const _: [(); 1] =
+    [(); (fs::TABLE_OFFSET + fs::TABLE_ENTRIES * fs::HASH_ENTRY_SIZE <= PAGE_SIZE) as usize];
 
 /// Result type alias for bitmap indexer operations
 pub type Result<T> = std::result::Result<T, Error>;
@@ -94,8 +97,8 @@ pub enum Error {
     #[error("Compression error: {0}")]
     Compression(String),
 
-    #[error("Hash collision: unable to resolve after maximum attempts")]
-    HashCollision,
+    #[error("Hash collision: unable to resolve after {0} levels")]
+    HashCollision(u32),
 
     #[error("Invalid bitmap operation: {0}")]
     InvalidOperation(String),
@@ -142,7 +145,3 @@ mod tests {
         assert_eq!(fs::HASH_ENTRY_SIZE, 32);
     }
 }
-
-
-
-

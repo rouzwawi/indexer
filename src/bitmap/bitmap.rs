@@ -1,7 +1,7 @@
 //! Core bitmap implementation - placeholder for now.
 
+use crate::storage::{FileSystem, MemoryMappedFile};
 use crate::types::Result;
-use crate::storage::{MemoryMappedFile, FileSystem};
 use std::path::Path;
 
 /// Main bitmap index interface

@@ -31,14 +31,14 @@
 //! }
 //! ```
 
-pub mod types;
-pub mod wah;
-pub mod storage;
 pub mod bitmap;
 pub mod hash;
+pub mod storage;
+pub mod types;
+pub mod wah;
 
-pub use bitmap::{BitmapIndex, BitmapWriter, BitmapReader};
-pub use types::{Result, Error};
+pub use bitmap::{BitmapIndex, BitmapReader, BitmapWriter};
+pub use types::{Error, Result};
 
 /// Version information for the bitmap indexer
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

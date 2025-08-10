@@ -1,6 +1,6 @@
 //! Core WAH compression implementation.
 
-use crate::types::{Result, Error, wah::*};
+use crate::types::{wah::*, Error, Result};
 use std::fmt;
 
 /// A WAH-compressed word that can be either a fill word or a literal word
@@ -17,7 +17,8 @@ impl WahWord {
     pub fn fill(value: bool, count: u64) -> Result<Self> {
         if count > MAX_FILL_COUNT {
             return Err(Error::Compression(format!(
-                "Fill count {} exceeds maximum {}", count, MAX_FILL_COUNT
+                "Fill count {} exceeds maximum {}",
+                count, MAX_FILL_COUNT
             )));
         }
 
@@ -138,7 +139,8 @@ impl WahEncoder {
                 if self.current_run_count <= 64 {
                     self.add_literal_run(value, self.current_run_count as usize)?;
                 } else {
-                    self.output.push(WahWord::fill(value, self.current_run_count)?);
+                    self.output
+                        .push(WahWord::fill(value, self.current_run_count)?);
                 }
             }
         }
@@ -192,9 +194,7 @@ pub struct WahDecoder {
 impl WahDecoder {
     /// Create a new WAH decoder
     pub fn new() -> Self {
-        Self {
-            output: Vec::new(),
-        }
+        Self { output: Vec::new() }
     }
 
     /// Decode a sequence of WAH words
@@ -226,7 +226,8 @@ impl WahDecoder {
         let remaining_bits = bit_count % 8;
 
         // Add full bytes
-        self.output.resize(self.output.len() + full_bytes, byte_value);
+        self.output
+            .resize(self.output.len() + full_bytes, byte_value);
 
         // Add partial byte if needed
         if remaining_bits > 0 {
@@ -303,7 +304,10 @@ mod tests {
 
         // Check we get the same results by comparing the original bits
         let expected_bytes = (bit_count + 7) / 8;
-        assert_eq!(&decompressed[..expected_bytes], &original_bits[..expected_bytes]);
+        assert_eq!(
+            &decompressed[..expected_bytes],
+            &original_bits[..expected_bytes]
+        );
     }
 
     #[test]
