@@ -19,17 +19,32 @@ pub const MAX_FILENAME_LENGTH: usize = 255;
 
 /// WAH compression constants
 pub mod wah {
-    /// Fill flag bit position (bit 63)
+    /// Number of data bits in a literal word (63)
+    pub const WORD_LENGTH: u32 = 63;
+
+    /// Fill flag bit mask (bit 63)
     pub const FILL_FLAG: u64 = 0x8000_0000_0000_0000;
 
-    /// Fill value bit position (bit 62)
+    /// Fill value bit mask (bit 62)
     pub const FILL_VAL: u64 = 0x4000_0000_0000_0000;
 
-    /// Maximum count for fill words (62 bits)
-    pub const MAX_FILL_COUNT: u64 = 0x3FFF_FFFF_FFFF_FFFF;
+    /// Combined mask for fill flag and value (bits 63..62)
+    pub const FILL_FV: u64 = 0xC000_0000_0000_0000;
 
-    /// Literal word mask (excludes fill bits)
-    pub const LITERAL_MASK: u64 = 0x3FFF_FFFF_FFFF_FFFF;
+    /// Canonical fill words for value 0 and 1 (with zero counts)
+    pub const FILL_0: u64 = 0x8000_0000_0000_0000;
+    pub const FILL_1: u64 = 0xC000_0000_0000_0000;
+
+    /// Fill count bits (low 31 bits)
+    pub const FILL_BITS: u64 = 0x0000_0000_7FFF_FFFF;
+    /// Backwards-compat alias for maximum fill count
+    pub const MAX_FILL_COUNT: u64 = FILL_BITS;
+
+    /// Literal-count bits (bits 61..31)
+    pub const LTRL_BITS: u64 = 0x3FFF_FFFF_8000_0000;
+
+    /// Data bits for literal words (low 63 bits)
+    pub const DATA_BITS: u64 = 0x7FFF_FFFF_FFFF_FFFF;
 }
 
 /// File system constants
@@ -127,7 +142,8 @@ mod tests {
         use wah::*;
         assert_eq!(FILL_FLAG, 0x8000_0000_0000_0000);
         assert_eq!(FILL_VAL, 0x4000_0000_0000_0000);
-        assert_eq!(MAX_FILL_COUNT, 0x3FFF_FFFF_FFFF_FFFF);
+        // In the C++ layout we follow, fill count uses 31 bits
+        assert_eq!(MAX_FILL_COUNT, 0x7FFF_FFFF);
     }
 
     #[test]
