@@ -7,56 +7,99 @@ use bitmap_indexer::storage::FileSystem;
 use std::env;
 use std::io::{self, BufRead, BufReader};
 
+#[derive(Debug)]
+struct Args {
+    _program_name: String,
+    index_path: String,
+    command: Command,
+}
+
+#[derive(Debug)]
+enum Command {
+    Cat { filename: String },
+    Tee { filename: String, overwrite: bool },
+    Fill { num_files: u32 },
+}
+
+fn parse_args() -> anyhow::Result<Args> {
+    let mut args = env::args();
+    let program_name = args.next().unwrap_or_else(|| "bitmap-indexer".to_string());
+
+    let index_path = args.next()
+        .ok_or_else(|| anyhow::anyhow!("Missing required argument: <index_path>"))?;
+
+    let command_str = args.next()
+        .ok_or_else(|| anyhow::anyhow!("Missing required argument: <command>"))?;
+
+    let command = match command_str.as_str() {
+        "cat" => {
+            let filename = args.next()
+                .ok_or_else(|| anyhow::anyhow!("cat command requires <filename> argument"))?;
+            Command::Cat { filename }
+        }
+        "tee" => {
+            let filename = args.next()
+                .ok_or_else(|| anyhow::anyhow!("tee command requires <filename> argument"))?;
+
+            let overwrite = args.any(|arg| arg == "--overwrite" || arg == "-o");
+            Command::Tee { filename, overwrite }
+        }
+        "fill" => {
+            let num_files_str = args.next()
+                .ok_or_else(|| anyhow::anyhow!("fill command requires <num_files> argument"))?;
+            let num_files = num_files_str.parse::<u32>()
+                .map_err(|_| anyhow::anyhow!("Invalid number for num_files: {}", num_files_str))?;
+            Command::Fill { num_files }
+        }
+        _ => {
+            return Err(anyhow::anyhow!("Unknown command: {}. Available commands: cat, tee, fill", command_str));
+        }
+    };
+
+    Ok(Args {
+        _program_name: program_name,
+        index_path,
+        command,
+    })
+}
+
+fn print_usage(program_name: &str) {
+    println!("Usage: {} <index_path> <command> [args...]", program_name);
+    println!();
+    println!("Commands:");
+    println!("  cat <filename>              - Read file and print to stdout");
+    println!("  tee <filename> [-o|--overwrite] - Read stdin, write to file and stdout");
+    println!("  fill <num_files>            - Fill files with sequential numbers");
+}
+
 fn main() -> anyhow::Result<()> {
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() < 3 {
-        println!("Usage: {} <index_path> <command> [args...]", args[0]);
-        println!("Commands:");
-        println!("  cat <filename>     - Read file and print to stdout");
-        println!("  tee <filename>     - Read stdin, write to file and stdout");
-        println!("  fill <num_files>   - Fill files with sequential numbers");
-        return Ok(());
-    }
-
-    let index_path = &args[1];
-    let command = &args[2];
+    let args = match parse_args() {
+        Ok(args) => args,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            print_usage(&env::args().next().unwrap_or_else(|| "bitmap-indexer".to_string()));
+            std::process::exit(1);
+        }
+    };
 
     // Initialize the memory-mapped filesystem
-    let mmf = MemoryMappedFile::new(index_path)?;
+    let mmf = MemoryMappedFile::new(&args.index_path)?;
     let mut fs = if mmf.allocated_pages() == 0 {
         FileSystem::init(mmf)?
     } else {
         FileSystem::new(mmf)?
     };
 
-    match command.as_str() {
-        "cat" => {
-            if args.len() != 4 {
-                println!("Usage: {} {} cat <filename>", args[0], args[1]);
-                return Ok(());
-            }
-            cat_command(&mut fs, &args[3])?;
+    match args.command {
+        Command::Cat { filename } => {
+            cat_command(&mut fs, &filename)?;
         }
-        "tee" => {
-            if args.len() < 4 {
-                println!("Usage: {} {} tee <filename>", args[0], args[1]);
-                return Ok(());
-            }
-            let overwrite = args.len() > 4 && (args[4] == "--overwrite" || args[4] == "-o");
-            tee_command(&mut fs, &args[3], overwrite)?;
+        Command::Tee { filename, overwrite } => {
+            tee_command(&mut fs, &filename, overwrite)?;
         }
-        "fill" => {
-            if args.len() != 4 {
-                println!("Usage: {} {} fill <num_files>", args[0], args[1]);
-                return Ok(());
-            }
-            fill_command(&mut fs, args[3].parse::<u32>()?)?;
+        Command::Fill { num_files } => {
+            fill_command(&mut fs, num_files)?;
             println!("Fill done");
-        }
-        _ => {
-            println!("Unknown command: {}", command);
-            println!("Available commands: cat, tee");
         }
     }
 
