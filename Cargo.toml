@@ -15,6 +15,7 @@ thiserror = "1.0"         # Error handling
 anyhow = "1.0"            # Error context
 serde = { version = "1.0", features = ["derive"] }  # Serialization
 serde_json = "1.0"        # JSON serialization
+csv = "1.3"               # CSV parsing for data ingestion
 
 [dev-dependencies]
 criterion = "0.5"         # Benchmarking
