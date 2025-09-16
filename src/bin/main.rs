@@ -2,13 +2,11 @@
 //!
 //! This tool provides Unix-like cat and tee functionality using the memory-mapped filesystem.
 
-use bitmap_indexer::bitmap::BitmapIndex;
+use bitmap_indexer::csv;
 use bitmap_indexer::storage::mmf::MemoryMappedFile;
 use bitmap_indexer::storage::FileSystem;
-use std::collections::HashMap;
 use std::env;
 use std::io::{self, BufRead, BufReader};
-use std::path::Path;
 
 #[derive(Debug)]
 struct Args {
@@ -112,7 +110,7 @@ fn main() -> anyhow::Result<()> {
             println!("Fill done");
         }
         Command::Ingest { csv_file } => {
-            ingest_command(&args.index_path, &csv_file)?;
+            csv::ingest_csv(&args.index_path, &csv_file)?;
         }
     }
 
@@ -203,85 +201,3 @@ fn fill_command(fs: &mut FileSystem, files: u32) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn ingest_command(index_path: &str, csv_file: &str) -> anyhow::Result<()> {
-    // Open the CSV file and create bitmap index
-    let mut index = BitmapIndex::open(index_path)?;
-
-    // Extract base filename (remove path and extension)
-    let csv_path = Path::new(csv_file);
-    let base_name = csv_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or_else(|| anyhow::anyhow!("Invalid CSV filename: {}", csv_file))?;
-
-    // Read and parse CSV
-    let mut reader = csv::Reader::from_path(csv_file)?;
-    let headers = reader.headers()?.clone();
-    let column_names: Vec<String> = headers.iter().map(|h| h.to_string()).collect();
-
-    // Collect all records to determine row count and build value mappings
-    let mut records = Vec::new();
-    for result in reader.records() {
-        let record = result?;
-        records.push(record);
-    }
-
-    let row_count = records.len();
-    println!("Processing {} rows with {} columns", row_count, column_names.len());
-
-    // Build value-to-bitmap mappings for each column
-    for (col_idx, column_name) in column_names.iter().enumerate() {
-        // Map each unique value to a list of row indices where it appears
-        let mut value_rows: HashMap<String, Vec<usize>> = HashMap::new();
-
-        for (row_idx, record) in records.iter().enumerate() {
-            if let Some(value) = record.get(col_idx) {
-                value_rows.entry(value.to_string()).or_default().push(row_idx);
-            }
-        }
-
-        // Create bitmap for each unique value in this column
-        for (value, row_indices) in value_rows {
-            let bitmap_name = format!("{}/{}/{}", base_name, column_name, value);
-            let mut writer = index.create_bitmap(&bitmap_name)?;
-
-            // Create bit pattern: set bits to 1 for rows where this value appears
-            let mut bit_data = vec![0u64];
-            let mut current_word = 0u64;
-            let mut current_bit = 0;
-
-            for row_idx in 0..row_count {
-                if row_indices.contains(&row_idx) {
-                    current_word |= 1u64 << current_bit;
-                }
-                current_bit += 1;
-
-                // Move to next word if we've filled 63 bits (WAH uses 63-bit words)
-                if current_bit >= 63 {
-                    let current_word_index = bit_data.len() - 1;
-                    bit_data[current_word_index] = current_word;
-                    if row_idx + 1 < row_count {
-                        bit_data.push(0u64);
-                        current_word = 0;
-                        current_bit = 0;
-                    }
-                }
-            }
-
-            // Write the final word if we have remaining bits
-            if current_bit > 0 {
-                let last_index = bit_data.len() - 1;
-                bit_data[last_index] = current_word;
-            }
-
-            // Append the bits to the bitmap
-            writer.append_bits(&bit_data, row_count)?;
-            writer.close()?;
-
-            println!("Created bitmap: {} ({} rows set)", bitmap_name, row_indices.len());
-        }
-    }
-
-    println!("CSV ingestion completed successfully");
-    Ok(())
-}
