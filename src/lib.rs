@@ -32,6 +32,7 @@
 //! ```
 
 pub mod bitmap;
+pub mod csv;
 pub mod hash;
 pub mod storage;
 pub mod types;

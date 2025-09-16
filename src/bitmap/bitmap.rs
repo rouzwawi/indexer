@@ -3,6 +3,7 @@
 use crate::storage::{FileSystem, MemoryMappedFile};
 use crate::types::Result;
 use crate::types::{wah, Error, PAGE_SIZE};
+use crate::wah::compression::WahWord;
 use std::path::Path;
 
 // ===== Bitmap on-page layout (4 KiB page) =====
@@ -87,6 +88,32 @@ fn page_as_ref(page: &[u8]) -> &BitmapPage {
 fn page_as_mut(page: &mut [u8]) -> &mut BitmapPage {
     // SAFETY: See page_as_ref safety; plus mutable borrow ensures exclusivity.
     unsafe { &mut *(page.as_mut_ptr() as *mut BitmapPage) }
+}
+
+// ===== Reader State Machine =====
+/// State of the BitmapReader
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ReaderState {
+    /// Reader has not started processing yet
+    Uninitialized,
+    /// Currently processing a fill word (0s or 1s)
+    ProcessingFillWord {
+        /// Value of the fill (0 or 1)
+        fill_value: bool,
+        /// Number of bits remaining in the fill
+        fill_remaining: u64,
+        /// Number of literal words that follow this fill
+        literals_to_follow: u32,
+    },
+    /// Currently processing a literal word
+    ProcessingLiteralWord {
+        /// The literal word value (63 bits of data)
+        literal_value: u64,
+        /// Current bit position within the literal (0-62)
+        bit_position: u32,
+        /// Number of additional literals remaining after this one
+        literals_remaining: u32,
+    },
 }
 
 // ===== High-level API =====
@@ -465,13 +492,14 @@ impl<'a> BitmapWriter<'a> {
     }
 }
 
-// ===== Core bitmap reader (skeleton) =====
+// ===== Core bitmap reader =====
 pub struct BitmapReader<'a> {
     fs: &'a mut FileSystem,
-    _first_page_num: u32,
-    _current_page_num: u32,
+    current_page_num: u32,
     bit_pos: u64,
     total_bits: u64,
+    current_word_index: u32,    // Index within current page's data area
+    state: ReaderState,         // Current state of the reader state machine
 }
 
 impl<'a> BitmapReader<'a> {
@@ -483,27 +511,175 @@ impl<'a> BitmapReader<'a> {
         verify_bitmap_page(page)?;
         let hdr = &page_as_ref(page).header;
         let total_bits = (hdr.length_0 as u64) | ((hdr.length_1 as u64) << 32);
-        Ok(Self {
+        let mut reader = Self {
             fs,
-            _first_page_num: first_page_num,
-            _current_page_num: first_page_num,
+            current_page_num: first_page_num,
             bit_pos: 0,
             total_bits,
-        })
+            current_word_index: 0,
+            state: ReaderState::Uninitialized,
+        };
+
+        // Load the first word to initialize state
+        if total_bits > 0 {
+            reader.advance_to_next_word().ok();
+        }
+
+        Ok(reader)
+    }
+
+    /// Advance to the next word in the bitmap stream, handling page boundaries
+    fn advance_to_next_word(&mut self) -> Result<()> {
+        // Determine next state based on current state
+        match self.state {
+            ReaderState::Uninitialized => {
+                // First word - read it and set initial state
+                self.read_next_wah_word()
+            }
+            ReaderState::ProcessingFillWord { literals_to_follow, .. } if literals_to_follow > 0 => {
+                // After a fill, we have literals to process
+                self.read_next_literal_word(literals_to_follow - 1)
+            }
+            ReaderState::ProcessingLiteralWord { literals_remaining, .. } if literals_remaining > 0 => {
+                // More literals to process
+                self.read_next_literal_word(literals_remaining - 1)
+            }
+            _ => {
+                // Need to read the next WAH word
+                self.read_next_wah_word()
+            }
+        }
+    }
+
+    /// Read the next WAH-encoded word and set appropriate state
+    /// Handles empty fills iteratively (not recursively)
+    fn read_next_wah_word(&mut self) -> Result<()> {
+        loop {
+            let word_raw = self.read_word_at_index(self.current_word_index)?;
+            self.current_word_index += 1;
+
+            let word = WahWord(word_raw);
+
+            if word.is_fill() {
+                let fill_value = word.fill_value();
+                let fill_remaining = word.fill_count() as u64 * 63;
+                let literals_to_follow = word.literal_count();
+
+                // Handle empty fills
+                if fill_remaining == 0 {
+                    if literals_to_follow > 0 {
+                        // Skip directly to processing the first literal
+                        return self.read_next_literal_word(literals_to_follow - 1);
+                    }
+                    // Empty fill with no literals - continue loop to read next word
+                    continue;
+                }
+
+                // Non-empty fill
+                self.state = ReaderState::ProcessingFillWord {
+                    fill_value,
+                    fill_remaining,
+                    literals_to_follow,
+                };
+                return Ok(());
+            } else {
+                // This must be the final partial word (not compressed through full_word)
+                // It contains raw bits up to cw_offset position
+                // We treat it as a literal word with all 63 bits
+                let literal_value = word.literal_value();
+                self.state = ReaderState::ProcessingLiteralWord {
+                    literal_value,
+                    bit_position: 0,
+                    literals_remaining: 0,
+                };
+                return Ok(());
+            }
+        }
+    }
+
+    /// Read the next literal word and update state
+    fn read_next_literal_word(&mut self, remaining_after_this: u32) -> Result<()> {
+        let word_raw = self.read_word_at_index(self.current_word_index)?;
+        self.current_word_index += 1;
+        let literal_value = word_raw & wah::DATA_BITS;
+
+        self.state = ReaderState::ProcessingLiteralWord {
+            literal_value,
+            bit_position: 0,
+            literals_remaining: remaining_after_this,
+        };
+
+        Ok(())
+    }
+
+    /// Read a word from the current page at the given index, handling page boundaries
+    fn read_word_at_index(&mut self, word_index: u32) -> Result<u64> {
+        // Check if we need to move to next page
+        if word_index >= BM_DATA_WORDS as u32 {
+            self.advance_to_next_page()?;
+            return self.read_word_at_index(word_index - BM_DATA_WORDS as u32);
+        }
+
+        let page = self.fs.get_page_data(self.current_page_num)?;
+        let bitmap_page = page_as_ref(page);
+        Ok(bitmap_page.data[word_index as usize])
+    }
+
+    /// Move to the next page in the bitmap
+    fn advance_to_next_page(&mut self) -> Result<()> {
+        let page = self.fs.get_page_data(self.current_page_num)?;
+        let bitmap_page = page_as_ref(page);
+
+        if bitmap_page.header.next_page == u32::MAX {
+            return Err(Error::InvalidOperation("No next page available".into()));
+        }
+
+        self.current_page_num = bitmap_page.header.next_page;
+        self.current_word_index = 0;
+        Ok(())
     }
 }
 
 impl<'a> Iterator for BitmapReader<'a> {
     type Item = bool;
     fn next(&mut self) -> Option<Self::Item> {
-        // Implementation will be added in a subsequent step
-        let _ = &self.fs; // silence unused for now
         if self.bit_pos >= self.total_bits {
             return None;
         }
-        // Placeholder: return false for now and advance
-        self.bit_pos += 1;
-        Some(false)
+
+        match self.state {
+            ReaderState::Uninitialized => {
+                // Should not happen if constructor properly initializes
+                None
+            }
+            ReaderState::ProcessingFillWord { fill_value, ref mut fill_remaining, .. } => {
+                if *fill_remaining > 0 {
+                    *fill_remaining -= 1;
+                    self.bit_pos += 1;
+                    Some(fill_value)
+                } else {
+                    // Fill is exhausted, advance to next word/state
+                    if self.advance_to_next_word().is_err() {
+                        return None;
+                    }
+                    self.next()
+                }
+            }
+            ReaderState::ProcessingLiteralWord { literal_value, ref mut bit_position, .. } => {
+                if *bit_position < 63 {
+                    let bit = (literal_value >> *bit_position) & 1 != 0;
+                    *bit_position += 1;
+                    self.bit_pos += 1;
+                    Some(bit)
+                } else {
+                    // Literal is exhausted, advance to next word/state
+                    if self.advance_to_next_word().is_err() {
+                        return None;
+                    }
+                    self.next()
+                }
+            }
+        }
     }
 }
 
