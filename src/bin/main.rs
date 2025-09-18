@@ -20,7 +20,8 @@ enum Command {
     Cat { filename: String },
     Tee { filename: String, overwrite: bool },
     Fill { num_files: u32 },
-    Ingest { csv_file: String },
+    Ingest { csv_file: String, chunk_size: usize },
+    GenerateCsv { rows: usize, columns: usize, distribution: String, special: bool },
 }
 
 fn parse_args() -> anyhow::Result<Args> {
@@ -54,12 +55,71 @@ fn parse_args() -> anyhow::Result<Args> {
             Command::Fill { num_files }
         }
         "ingest" => {
-            let csv_file = args.next()
-                .ok_or_else(|| anyhow::anyhow!("ingest command requires <csv_file> argument"))?;
-            Command::Ingest { csv_file }
+            let mut chunk_size = 256 * 1024;
+            let mut csv_file = String::new();
+
+            while let Some(arg) = args.next() {
+                match arg.as_str() {
+                    "--chunk-size" | "-c" => {
+                        chunk_size = args.next()
+                            .ok_or_else(|| anyhow::anyhow!("ingest command requires <chunk_size> argument"))?
+                            .parse::<usize>()
+                            .map_err(|_| anyhow::anyhow!("Invalid number for chunk_size: {}", chunk_size))?;
+                    }
+                    _ if csv_file.is_empty() => {
+                        csv_file = arg;
+                    }
+                    _ => {
+                        return Err(anyhow::anyhow!("Unknown option for ingest: {}", arg));
+                    }
+                }
+            }
+
+            if csv_file.is_empty() {
+                return Err(anyhow::anyhow!("ingest command requires <csv_file> argument"));
+            }
+
+            Command::Ingest { csv_file, chunk_size }
+        }
+        "generate-csv" => {
+            let mut rows = 100;
+            let mut columns = 2;
+            let mut distribution = "uniform".to_string();
+            let mut special = false;
+
+            while let Some(arg) = args.next() {
+                match arg.as_str() {
+                    "--rows" | "-r" => {
+                        rows = args.next()
+                            .ok_or_else(|| anyhow::anyhow!("--rows requires a value"))?
+                            .parse::<usize>()
+                            .map_err(|_| anyhow::anyhow!("Invalid number for rows"))?;
+                    }
+                    "--columns" | "-c" => {
+                        columns = args.next()
+                            .ok_or_else(|| anyhow::anyhow!("--columns requires a value"))?
+                            .parse::<usize>()
+                            .map_err(|_| anyhow::anyhow!("Invalid number for columns"))?;
+                    }
+                    "--distribution" | "-d" => {
+                        distribution = args.next()
+                            .ok_or_else(|| anyhow::anyhow!("--distribution requires a value"))?;
+                        if !["uniform", "skewed", "sparse", "dense"].contains(&distribution.as_str()) {
+                            return Err(anyhow::anyhow!("Invalid distribution: {}. Must be one of: uniform, skewed, sparse, dense", distribution));
+                        }
+                    }
+                    "--special" => {
+                        special = true;
+                    }
+                    _ => {
+                        return Err(anyhow::anyhow!("Unknown option for generate-csv: {}", arg));
+                    }
+                }
+            }
+            Command::GenerateCsv { rows, columns, distribution, special }
         }
         _ => {
-            return Err(anyhow::anyhow!("Unknown command: {}. Available commands: cat, tee, fill, ingest", command_str));
+            return Err(anyhow::anyhow!("Unknown command: {}. Available commands: cat, tee, fill, ingest, generate-csv", command_str));
         }
     };
 
@@ -77,7 +137,15 @@ fn print_usage(program_name: &str) {
     println!("  cat <filename>              - Read file and print to stdout");
     println!("  tee <filename> [-o|--overwrite] - Read stdin, write to file and stdout");
     println!("  fill <num_files>            - Fill files with sequential numbers");
-    println!("  ingest <csv_file>           - Ingest CSV data into bitmap indexes");
+    println!("  ingest <csv_file> [-c|--chunk-size <size>] - Ingest CSV data into bitmap indexes");
+    println!("    Options:");
+    println!("      --chunk-size, -c <size> - Chunk size (default: 16384)");
+    println!("  generate-csv [options]      - Generate CSV data to stdout");
+    println!("    Options:");
+    println!("      --rows, -r <num>        - Number of rows (default: 100)");
+    println!("      --columns, -c <num>     - Number of columns (default: 2)");
+    println!("      --distribution, -d <type> - Value distribution: uniform, skewed, sparse, dense (default: uniform)");
+    println!("      --special               - Generate edge case CSV with special characters");
 }
 
 fn main() -> anyhow::Result<()> {
@@ -90,7 +158,29 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    // Initialize the memory-mapped filesystem
+    // GenerateCsv command doesn't need filesystem initialization
+    if let Command::GenerateCsv { rows, columns, distribution, special } = args.command {
+        if special {
+            csv::generator::generate_edge_case_csv_to_writer(&mut std::io::stdout())?;
+        } else {
+            let config = csv::generator::CsvConfig {
+                num_rows: rows,
+                num_columns: columns,
+                column_prefix: "col".to_string(),
+                value_prefix: "val".to_string(),
+                distribution: match distribution.as_str() {
+                    "skewed" => csv::generator::ValueDistribution::Skewed,
+                    "sparse" => csv::generator::ValueDistribution::Sparse,
+                    "dense" => csv::generator::ValueDistribution::Dense,
+                    _ => csv::generator::ValueDistribution::Uniform,
+                },
+            };
+            csv::generator::generate_csv_to_stdout(&config)?;
+        }
+        return Ok(());
+    }
+
+    // Initialize the memory-mapped filesystem for other commands
     let mmf = MemoryMappedFile::new(&args.index_path)?;
     let mut fs = if mmf.allocated_pages() == 0 {
         FileSystem::init(mmf)?
@@ -109,8 +199,11 @@ fn main() -> anyhow::Result<()> {
             fill_command(&mut fs, num_files)?;
             println!("Fill done");
         }
-        Command::Ingest { csv_file } => {
-            csv::ingest_csv(&args.index_path, &csv_file)?;
+        Command::Ingest { csv_file, chunk_size } => {
+            csv::ingest_csv_streaming(&args.index_path, &csv_file, chunk_size)?;
+        }
+        Command::GenerateCsv { .. } => {
+            unreachable!("GenerateCsv was already handled above");
         }
     }
 
@@ -200,4 +293,3 @@ fn fill_command(fs: &mut FileSystem, files: u32) -> anyhow::Result<()> {
     fs.mmf().sync_all()?;
     Ok(())
 }
-

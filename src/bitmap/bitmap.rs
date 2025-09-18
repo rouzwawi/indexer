@@ -116,6 +116,11 @@ enum ReaderState {
     },
 }
 
+struct LastFillInfo {
+    page: u32,
+    pos: u32,
+}
+
 // ===== High-level API =====
 /// Main bitmap index interface
 pub struct BitmapIndex {
@@ -149,6 +154,18 @@ impl BitmapIndex {
         }
         Ok(BitmapReader::new(&mut self.filesystem, file_page)?)
     }
+
+    /// Open an existing bitmap for appending, or create a new one if it doesn't exist
+    pub fn open_or_create_bitmap(&mut self, name: &str) -> Result<BitmapWriter<'_>> {
+        let file_page = self.filesystem.get_file_page(name)?;
+        if file_page == 0 {
+            // Bitmap doesn't exist, create new one
+            self.create_bitmap(name)
+        } else {
+            // Bitmap exists, open for appending
+            Ok(BitmapWriter::new(&mut self.filesystem, file_page)?)
+        }
+    }
 }
 
 // ===== Core bitmap writer =====
@@ -172,6 +189,15 @@ impl<'a> BitmapWriter<'a> {
             first_page_num,
             current_page_num,
         })
+    }
+
+    /// Close writer (flushes first page headers)
+    pub fn close(&mut self) -> Result<()> {
+        // Ensure first page is synced
+        self.fs.sync_page(self.first_page_num)?;
+        // Ensure current page is synced
+        self.fs.sync_page(self.current_page_num)?;
+        Ok(())
     }
 
     /// Append bits to the bitmap. Input is a sequence of 64-bit words.
@@ -272,51 +298,112 @@ impl<'a> BitmapWriter<'a> {
         if count == 0 {
             return Ok(());
         }
-        // Simple literal-based fill for now; compression folding will be added later
-        let bit: u64 = if value { 1 } else { 0 };
-        let (mut cw_offset, mut written_words) = self.read_offsets()?;
-        for _ in 0..count {
-            // Append one bit at a time into 63-bit words
+
+        let (mut written_words, mut cw_offset) = self.read_offsets()?;
+        let mut remaining_bits = count;
+
+        // Step 1: Complete any partial literal word with fill bits
+        if cw_offset > 0 {
+            let bits_to_complete_word = (BM_DATA_BITS - cw_offset) as usize;
+            let bits_to_add = remaining_bits.min(bits_to_complete_word);
+
             let mut cw = self.read_current_word(written_words)?;
-            cw |= bit << cw_offset;
-            cw_offset += 1;
-            if cw_offset >= BM_DATA_BITS {
-                self.full_word(cw, &mut written_words)?;
-                self.full_page(&mut written_words, &mut cw_offset)?;
-                cw_offset = 0;
-                self.write_current_word(0, written_words)?;
-            } else {
-                self.write_current_word(cw, written_words)?;
+            if value {
+                // Set the appropriate number of bits to 1
+                let mask = ((1u64 << bits_to_add) - 1) << cw_offset;
+                cw |= mask;
             }
+            // Note: for value=false, bits are already 0, no need to clear
+
+            cw_offset += bits_to_add as u32;
+            remaining_bits -= bits_to_add;
+
+            // We assume cw_offset == BM_DATA_BITS here
+            self.full_word(cw, &mut written_words)?;
+            self.full_page(&mut written_words, &mut cw_offset)?;
+            cw_offset = 0;
+            self.write_current_word(0, written_words)?;
         }
+
+        // Step 2: Create or extend fill word for complete 63-bit words
+        let full_words = remaining_bits / (BM_DATA_BITS as usize);
+        if full_words > 0 {
+            // Try to extend the last fill if it has the same value
+            let last_fill_info = {
+                let first = self.fs.get_page_data(self.first_page_num)?;
+                let fp = page_as_ref(first);
+                (fp.header.last_fill_page, fp.header.last_fill_pos)
+            };
+
+            let mut fill_extended = false;
+            if last_fill_info.0 != u32::MAX {
+                let (lf_page, lf_pos) = last_fill_info;
+                let page = self.fs.get_page_data_mut(lf_page)?;
+                let p = page_as_mut(page);
+                let last_val = p.data[lf_pos as usize];
+                let no_literals_since = (last_val & wah::LTRL_BITS) == 0;
+                let last_fill_val_set = (last_val & wah::FILL_VAL) != 0;
+                if no_literals_since && last_fill_val_set == value {
+                    // Extend existing fill by full_words
+                    let current_count = last_val & wah::FILL_BITS;
+                    let new_count = current_count + full_words as u64;
+                    if new_count <= wah::MAX_FILL_COUNT {
+                        p.data[lf_pos as usize] = (last_val & !wah::FILL_BITS) | new_count;
+                        fill_extended = true;
+                        // Sync if it's a different page than current
+                        if lf_page != self.current_page_num {
+                            self.fs.sync_page(lf_page)?;
+                        }
+                    }
+                }
+            }
+
+            if !fill_extended {
+                // Create a new fill word with the exact count
+                let mut words_to_fill = full_words as u64;
+                while words_to_fill > 0 {
+                    let count = words_to_fill.min(wah::MAX_FILL_COUNT);
+                    let fill_word = if value {
+                        wah::FILL_1 + count
+                    } else {
+                        wah::FILL_0 + count
+                    };
+                    self.write_current_word(fill_word, written_words)?;
+
+                    // Update first page header with last fill location
+                    {
+                        let first = self.fs.get_page_data_mut(self.first_page_num)?;
+                        let fp = page_as_mut(first);
+                        fp.header.last_fill_page = self.current_page_num;
+                        fp.header.last_fill_pos = written_words;
+                    }
+
+                    written_words += 1;
+                    self.full_page(&mut written_words, &mut cw_offset)?;
+                    words_to_fill -= count;
+                }
+            }
+
+            remaining_bits -= full_words * (BM_DATA_BITS as usize);
+        }
+
+        // Step 3: Handle any remaining bits
+        if remaining_bits > 0 {
+            let mut cw = self.read_current_word(written_words)?;
+            if value {
+                // Set the remaining bits to 1
+                let mask = (1u64 << remaining_bits) - 1;
+                cw |= mask;
+            }
+            // Note: for value=false, bits are already 0
+
+            cw_offset = remaining_bits as u32;
+            self.write_current_word(cw, written_words)?;
+        }
+
         self.increment_length(count as u64)?;
         self.write_offsets(written_words, cw_offset)?;
         self.fs.sync_page(self.current_page_num)?;
-        Ok(())
-    }
-
-    /// Close writer (flushes first page headers)
-    pub fn close(&mut self) -> Result<()> {
-        // Ensure first page is synced
-        self.fs.sync_page(self.first_page_num)?;
-        // Ensure current page is synced
-        self.fs.sync_page(self.current_page_num)?;
-        Ok(())
-    }
-
-    // ===== Internal helpers =====
-    #[inline]
-    fn read_current_word(&mut self, written_words: u32) -> Result<u64> {
-        let page = self.fs.get_page_data_mut(self.current_page_num)?;
-        let p = page_as_mut(page);
-        Ok(p.data[written_words as usize] & ((1u64 << BM_DATA_BITS) - 1))
-    }
-
-    #[inline]
-    fn write_current_word(&mut self, value: u64, written_words: u32) -> Result<()> {
-        let page = self.fs.get_page_data_mut(self.current_page_num)?;
-        let p = page_as_mut(page);
-        p.data[written_words as usize] = value;
         Ok(())
     }
 
@@ -333,40 +420,25 @@ impl<'a> BitmapWriter<'a> {
 
         if is_all_ones || is_all_zeros {
             // Try to extend last fill if no literals were added since and same fill value
-            let last_fill_info = {
-                let first = self.fs.get_page_data(self.first_page_num)?;
-                let fp = page_as_ref(first);
-                (fp.header.last_fill_page, fp.header.last_fill_pos)
-            };
+            let LastFillInfo { page: lf_page, pos: lf_pos } = self.last_fill_info()?;
 
             let want_fill_val_set = is_all_ones; // true for ones, false for zeros
 
-            if last_fill_info.0 != u32::MAX {
-                let (lf_page, lf_pos) = last_fill_info;
-                if lf_page == self.current_page_num {
-                    let page = self.fs.get_page_data_mut(self.current_page_num)?;
-                    let p = page_as_mut(page);
-                    let last_val = p.data[lf_pos as usize];
-                    let no_literals_since = (last_val & wah::LTRL_BITS) == 0;
-                    let last_fill_val_set = (last_val & wah::FILL_VAL) != 0;
-                    if no_literals_since && last_fill_val_set == want_fill_val_set {
-                        // extend existing fill by one word (increment low 31-bit count)
-                        p.data[lf_pos as usize] = last_val.wrapping_add(1);
-                        // do NOT advance written_words (this word is compressed away)
-                        return Ok(());
-                    }
-                } else {
-                    // last fill is on a different page
-                    let page = self.fs.get_page_data_mut(lf_page)?;
-                    let p = page_as_mut(page);
-                    let last_val = p.data[lf_pos as usize];
-                    let no_literals_since = (last_val & wah::LTRL_BITS) == 0;
-                    let last_fill_val_set = (last_val & wah::FILL_VAL) != 0;
-                    if no_literals_since && last_fill_val_set == want_fill_val_set {
-                        p.data[lf_pos as usize] = last_val.wrapping_add(1);
+            if lf_page != u32::MAX {
+                let page = self.fs.get_page_data_mut(lf_page)?;
+                let p = page_as_mut(page);
+                let last_val = p.data[lf_pos as usize];
+                let no_literals_since = (last_val & wah::LTRL_BITS) == 0;
+                let last_fill_val_set = (last_val & wah::FILL_VAL) != 0;
+                if no_literals_since && last_fill_val_set == want_fill_val_set {
+                    // extend existing fill by one word (increment low 31-bit count)
+                    p.data[lf_pos as usize] = last_val.wrapping_add(1);
+                    if lf_page != self.current_page_num {
+                        // last fill is on a different page
                         self.fs.sync_page(lf_page)?;
-                        return Ok(());
                     }
+                    // do NOT advance written_words (this word is compressed away)
+                    return Ok(());
                 }
             }
 
@@ -384,6 +456,7 @@ impl<'a> BitmapWriter<'a> {
                 let fp = page_as_mut(first);
                 fp.header.last_fill_page = self.current_page_num;
                 fp.header.last_fill_pos = *written_words;
+                self.fs.sync_page(self.first_page_num)?;
             }
 
             *written_words += 1;
@@ -394,21 +467,12 @@ impl<'a> BitmapWriter<'a> {
         self.write_current_word(w63, *written_words)?;
 
         // Increment literal count of the last fill word
-        let last_fill_info = {
-            let first = self.fs.get_page_data(self.first_page_num)?;
-            let fp = page_as_ref(first);
-            (fp.header.last_fill_page, fp.header.last_fill_pos)
-        };
-        if last_fill_info.0 != u32::MAX {
-            let (lf_page, lf_pos) = last_fill_info;
-            if lf_page == self.current_page_num {
-                let page = self.fs.get_page_data_mut(self.current_page_num)?;
-                let p = page_as_mut(page);
-                p.data[lf_pos as usize] = p.data[lf_pos as usize].wrapping_add(1u64 << 31);
-            } else {
-                let page = self.fs.get_page_data_mut(lf_page)?;
-                let p = page_as_mut(page);
-                p.data[lf_pos as usize] = p.data[lf_pos as usize].wrapping_add(1u64 << 31);
+        let LastFillInfo { page: lf_page, pos: lf_pos } = self.last_fill_info()?;
+        if lf_page != u32::MAX {
+            let page = self.fs.get_page_data_mut(lf_page)?;
+            let p = page_as_mut(page);
+            p.data[lf_pos as usize] = p.data[lf_pos as usize].wrapping_add(1u64 << 31);
+            if lf_page != self.current_page_num {
                 self.fs.sync_page(lf_page)?;
             }
         }
@@ -460,6 +524,32 @@ impl<'a> BitmapWriter<'a> {
         Ok(())
     }
 
+    #[inline]
+    fn read_current_word(&mut self, written_words: u32) -> Result<u64> {
+        let page = self.fs.get_page_data_mut(self.current_page_num)?;
+        let p = page_as_mut(page);
+        Ok(p.data[written_words as usize] & ((1u64 << BM_DATA_BITS) - 1))
+    }
+
+    #[inline]
+    fn write_current_word(&mut self, value: u64, written_words: u32) -> Result<()> {
+        let page = self.fs.get_page_data_mut(self.current_page_num)?;
+        let p = page_as_mut(page);
+        p.data[written_words as usize] = value;
+        Ok(())
+    }
+
+    #[inline]
+    fn last_fill_info(&mut self) -> Result<LastFillInfo> {
+        let first = self.fs.get_page_data(self.first_page_num)?;
+        let fp = page_as_ref(first);
+        Ok(LastFillInfo {
+            page: fp.header.last_fill_page,
+            pos: fp.header.last_fill_pos,
+        })
+    }
+
+    #[inline]
     fn load_page(&mut self, page_num: u32) -> Result<()> {
         self.current_page_num = page_num;
         let page = self.fs.get_page_data(page_num)?;
@@ -467,12 +557,14 @@ impl<'a> BitmapWriter<'a> {
         Ok(())
     }
 
+    #[inline]
     fn read_offsets(&mut self) -> Result<(u32, u32)> {
         let current = self.fs.get_page_data(self.current_page_num)?;
         let cp = page_as_ref(current);
         Ok((cp.header.written_words, cp.header.cw_offset))
     }
 
+    #[inline]
     fn write_offsets(&mut self, written_words: u32, cw_offset: u32) -> Result<()> {
         let current = self.fs.get_page_data_mut(self.current_page_num)?;
         let cp = page_as_mut(current);
@@ -481,6 +573,7 @@ impl<'a> BitmapWriter<'a> {
         Ok(())
     }
 
+    #[inline]
     fn increment_length(&mut self, add_bits: u64) -> Result<()> {
         let first = self.fs.get_page_data_mut(self.first_page_num)?;
         let fp = page_as_mut(first);

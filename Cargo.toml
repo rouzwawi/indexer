@@ -32,3 +32,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "bitmap-indexer"
 path = "src/bin/main.rs"
+
+[[bin]]
+name = "csv_ingest_bench"
+path = "benches/csv_ingest_bench.rs"
