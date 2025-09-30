@@ -1,0 +1,9 @@
+timestamp,optimization,duration_seconds,throughput_rows_per_sec,duration_improvement_pct,throughput_improvement_pct,speedup,notes
+2025-09-17T10:30:00,Baseline,323.38,3092,0.0,0.0,1.0,Initial implementation before optimizations
+2025-09-17T11:47:24.683243,Baseline,318.37,3141.0,1.5492609314119583,1.5847347994825356,1.0157364073248107,Initial implementation before optimizations
+2025-09-17T11:51:13.239053,BitSet Optimization,6.72,150200.0,97.92194940936358,4757.6972833117725,48.12202380952381,Replace O(n) Vec.contains() with O(1) BitSet lookups
+2025-09-17T11:56:16.738406,WAH-Native BitSet,5.93,169026.0,98.1662440472509,5366.558861578267,54.53288364249578,"BitSet uses 63-bit WAH format natively, no conversion needed"
+2025-09-17T13:38:22.161279,Parallel Batch Processing (REMOVED),5.89,169851.0,98.17806973633062,5393.3549708455,54.87351778656126,REMOVED - Only 0.6% improvement not worth the added complexity
+2025-09-17T13:54:04.622749,Single-Pass Iteration,6.31,158499.0,98.04873523408992,5026.099611901682,51.24881141045959,"Iterate records once, build all column bitsets together. Slightly slower but enables streaming"
+2025-09-17T15:31:40.778801,Single-Pass (Current Best),7.46,134205.0,97.69311645741853,4240.394566623544,43.3485254691689,"Iterate records once, build all bitsets together (6.44s, 155279 rows/sec)"
+2025-09-17T15:32:52.931125,Streaming (10K chunks),7.07,141578.0,97.81371760776796,4478.848641655886,45.73974540311174,"True streaming with chunk-based processing. 50% slower but constant memory usage (9.66s, 103525 rows/sec)"
